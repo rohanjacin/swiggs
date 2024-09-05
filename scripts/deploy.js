@@ -39,50 +39,17 @@ SwiggsNetwork.prototype.deploy = async function () {
 	//this.registerEvents();
 }
 
-/*LockNetwork.prototype.registerEvents = async function () {
+SwiggsNetwork.prototype.registerEvents = async function () {
 
-	// Bidding open after Owner registers
-	let filter = this.samplelock.filters.BidRoomNow(null, null);
-	this.samplelock.on(filter, (result) => {
+	// Restaurant registration event
+	filter = this.sampleSwiggs.filters.RestaurantRegistered(null, null);
+	this.sampleSwiggs.on(filter, (results) => {
 
-		console.log("Onwer has registered..");
-		console.log("Onwer:" + result.args.owner);
-		console.log("Price:" + result.args.price);
-		return;
-	});
-
-	// Guest registers after after winning bid
-	filter = this.samplelock.filters.GuestRegistered(null, null);
-	this.samplelock.on(filter, (result) => {
-
-		console.log("Guest has registered and bid..");
-		console.log("Guest:" + result.args.guest);
-		console.log("Owner:" + result.args.owner);
-		return;
-	});
-
-	// Guest approved by owner
-	filter = this.samplelock.filters.GuestApproved(null, null, null);
-	this.samplelock.on(filter, (result) => {
-
-		console.log("Guest has been approved by owner..");
-		console.log("Guest:" + result.args.guest);
-		console.log("Owner:" + result.args.owner);
-		console.log("Nonce:" + result.args.nonce);
-		return;
-	});
-
-	filter = this.samplelock.filters.RespondAuth(null, null, null, null);
-	this.samplelock.on(filter, (result) => {
-
-		console.log("Guest have been approved by owner..");
-		console.log("Guest:" + result.args.guest);
-		console.log("Owner:" + result.args.owner);
-		console.log("Owner verified?:" + result.args.isOwnerVerfied);
-		console.log("Nonce:" + result.args.nonce);
-		return;
+		console.log('Restaurant registration done..'); 
+		console.log('id=' + results.args.restaurantId);
+		console.log('address=' + results.args.restaurantAddress);
 	});			
-}*/
+}
 
 var swiggsnet = new SwiggsNetwork();
 

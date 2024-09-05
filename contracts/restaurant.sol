@@ -22,4 +22,10 @@ contract Restaurant {
 		id = _id;
 		console.log("Restaurant Init:", id);
 	}
+
+	function getId() public view returns(uint256) {
+
+		console.log("Getting restaurant id:", id);
+		return id;
+	}
 } 
