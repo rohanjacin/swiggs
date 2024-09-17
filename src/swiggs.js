@@ -27,21 +27,27 @@ SwiggsNetwork.prototype.connect = async function () {
 }
 
 // Register a restaurant with the Swiggs network
-SwiggsNetwork.prototype.registerRestaurant = async function (restaurantId) {
+SwiggsNetwork.prototype.deployRestaurant = async function (restaurantId) {
+
+ 	let _address = await hre.ethers.getSigners();
+ 	let _ownerAddress = _address[2];
 
 	// Register restaurant with restaurantId from Swiggy
-	await this.sampleSwiggs.connect(this.admin).registerRestaurant(restaurantId);
-	console.log("Registered restaurant..");
+	await this.sampleSwiggs.connect(this.admin).deployRestaurant(
+		restaurantId, _ownerAddress);
+	console.log("Deployed restaurant..");
 }
 
 SwiggsNetwork.prototype.registerEvents = function () {
 
-	filter = this.sampleSwiggs.filters.RestaurantRegistered(null, null);
+	filter = this.sampleSwiggs.filters.RestaurantDeployed(null, null, null);
 	this.sampleSwiggs.on(filter, (results) => {
 
-		console.log('Restaurant registration done..'); 
+		console.log('Restaurant deploy done..'); 
 		console.log('id=' + results.args.restaurantId);
-		console.log('address=' + results.args.restaurantAddress);
+		console.log('restaurantAt=' + results.args.restaurantAt);
+		console.log('escrowAt=' + results.args.escrowAt);
+
 	});
 }
 
@@ -54,7 +60,7 @@ var swiggsnetwork = new SwiggsNetwork();
 
 	let id = 0x1234;
 	console.log("Trying to register a restaurant with id:", id);
-	await swiggsnetwork.registerRestaurant(id).catch((error) => {
+	await swiggsnetwork.deployRestaurant(id).catch((error) => {
 		console.error(error);
 		process.exitCode = 1;
 	});

@@ -28,12 +28,12 @@ SwiggsNetwork.prototype.deploy = async function () {
 	console.log(`Swiggs deployed to ${this.sampleSwiggsAddress}`);
 
 	// Deploys resutaurant contract
-	this.Restaurant = await hre.ethers.getContractFactory('Restaurant');
+/*	this.Restaurant = await hre.ethers.getContractFactory('Restaurant');
 	this.sampleRestaurant = await this.Restaurant.deploy(1234);
 	await this.sampleRestaurant.waitForDeployment();
 	this.sampleRestaurantAddress = await this.sampleRestaurant.getAddress(); 
 	console.log(`Restaurant template deployed to ${this.sampleRestaurantAddress}`);
-	
+*/	
 	//console.log("this.sampleSwiggs:",Object.keys(this.sampleSwiggs.runner.provider._hardhatProvider._emitter._events));
 	// Register for events from Swiggs network.
 	//this.registerEvents();
@@ -42,12 +42,13 @@ SwiggsNetwork.prototype.deploy = async function () {
 SwiggsNetwork.prototype.registerEvents = async function () {
 
 	// Restaurant registration event
-	filter = this.sampleSwiggs.filters.RestaurantRegistered(null, null);
+	filter = this.sampleSwiggs.filters.RestaurantDeployed(null, null, null);
 	this.sampleSwiggs.on(filter, (results) => {
 
-		console.log('Restaurant registration done..'); 
+		console.log('Restaurant deploy done..'); 
 		console.log('id=' + results.args.restaurantId);
-		console.log('address=' + results.args.restaurantAddress);
+		console.log('restaurantAt=' + results.args.restaurantAt);
+		console.log('escrowAt=' + results.args.escrowAt);
 	});			
 }
 
