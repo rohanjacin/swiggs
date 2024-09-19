@@ -21,15 +21,16 @@ contract Swiggs {
 		address restaurantAt, address escrowAt);
 
 	// Deploys the restaurant's smart contract
-	function deployRestaurant(uint256 restaurantId, address ownerAddress)
+	function deployRestaurant(uint256 restaurantId, address ownerAddress,
+		bytes memory restaurantInitCode, bytes memory escrowInitCode)
 	public payable returns (bool success) {
 
 		// Deploy restaurant's smart contract
 		address restaurantAt = _deployRestaurantContract(
-			restaurantId, ownerAddress);
+			restaurantId, ownerAddress, restaurantInitCode);
 
 		address escrowAt = _deployRestaurantEscrowContract(
-			restaurantId, ownerAddress, restaurantAt);
+			restaurantId, ownerAddress, restaurantAt, escrowInitCode);
 		//console.log("Done..");
 
 		emit RestaurantDeployed(restaurantId, restaurantAt, escrowAt);
@@ -37,17 +38,18 @@ contract Swiggs {
 	}
 
 	function _deployRestaurantContract(uint256 restaurantId,
-		address ownerAddress) internal returns(address) {
+		address ownerAddress, bytes memory restaurantInitCode)
+		internal returns(address) {
 
 		address payable addr;
 		bytes32 _salt;
-		bytes memory initCode = type(Restaurant).creationCode;
+		//bytes memory initCode = type(Restaurant).creationCode;
 
 		//console.log("restaurantId:", restaurantId);
 		_salt = keccak256(abi.encodePacked(restaurantId));
 		//console.log("_salt:", uint256(_salt));
 
-		bytes memory byteCode = abi.encodePacked(initCode,
+		bytes memory byteCode = abi.encodePacked(restaurantInitCode,
 			uint256(restaurantId), abi.encode(address(ownerAddress)));
 
 		//console.log("creating restaurant contract..:", restaurantId);
@@ -70,12 +72,13 @@ contract Swiggs {
 	}
 
 	function _deployRestaurantEscrowContract(uint256 restaurantId,
-		address ownerAddress, address restaurantDeployedAddress) internal
+		address ownerAddress, address restaurantDeployedAddress,
+		bytes memory escrowInitCode) internal
 		returns(address) {
 
 		address payable addr;
 		bytes32 _salt;
-		bytes memory initCode = type(RestaurantEscrow).creationCode;
+		//bytes memory initCode = type(RestaurantEscrow).creationCode;
 
 		//console.log("restaurantId:", restaurantId);
 		//console.log("ownerAddress:", ownerAddress);
@@ -83,7 +86,7 @@ contract Swiggs {
 		_salt = keccak256(abi.encodePacked(restaurantId, ownerAddress));
 		//console.log("_salt:", uint256(_salt));
 
-		bytes memory byteCode = abi.encodePacked(initCode,
+		bytes memory byteCode = abi.encodePacked(escrowInitCode,
 			abi.encode(address(restaurantDeployedAddress)));
 		//console.log("creating restaurant escrow contract..:", restaurantId);
 
@@ -106,7 +109,7 @@ contract Swiggs {
 
 	// Validate reward against an order
 	// TODO: Revist restaruant address creation scheme
-/*	function validateReward(address restaurantAddress, uint256 orderId, uint256 value)
+	function validateReward(address restaurantAddress, uint256 orderId, uint256 value)
 	public view {
 
 		// Fetch restaurant contract and check is retaurant contract exists
@@ -132,5 +135,5 @@ contract Swiggs {
 
 		// Validate reward amount
 		require(value == _reward, "Swiggs#validateReward: rewards not exact");
-	}*/
-} 
+	}
+}

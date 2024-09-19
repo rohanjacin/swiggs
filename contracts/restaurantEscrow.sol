@@ -3,11 +3,11 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
-import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
+//import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "hardhat/console.sol";
 
 // Restaurant Escrow account
-contract RestaurantEscrow is ERC1155 {
+abstract contract RestaurantEscrow is ERC1155 {
 	
 	address internal RESTAURANT_ADDESS; 
 	uint256 internal nOrders = 0;

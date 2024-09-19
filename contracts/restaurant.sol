@@ -17,7 +17,7 @@ struct RestaurantInfo {
 }
 
 // Main Contract
-contract Restaurant is ERC1155Holder {
+abstract contract Restaurant is ERC1155Holder {
 
 	uint256 public id;
 	address public owner;
