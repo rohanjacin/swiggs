@@ -35,12 +35,19 @@ contract RestaurantEscrow is ERC1155 {
 	// Deposit the rewards for order id <orderId> 
 	// orderId => (owner => tokens) 
 	function deposit(uint256 orderId, uint256 value) public payable 
-	onlyRestaurantOwner {
+		onlyRestaurantOwner {
+
+		console.log("in deposit:", value);
+		console.log("msg.value:", msg.value);
+
 		require(msg.value != 0, "RestaurantEscrow#deposit: msg value is 0");
 		require(msg.value == value, "RestaurantEscrow#deposit: msg value not same as value");
 
 		nOrders += 1;
+
+		console.log("nOrders:", nOrders);
 		_mint(RESTAURANT_ADDESS, orderId, value, "");
+		console.log("donee .. balance:", address(this).balance);
 	}
 
 	// Withdraw the rewards for order id <orderId>
@@ -48,10 +55,13 @@ contract RestaurantEscrow is ERC1155 {
 		public onlySwiggs {
 
 		// Reward value in escrow kitty should match requested withdrawal
-		uint256 _value = balanceOf(RESTAURANT_ADDESS, orderId);
+		uint256 _rewardBalance = balanceOf(RESTAURANT_ADDESS, orderId);
+		console.log("_rewardBalance:", _rewardBalance);
+		console.log("value:", value);
 
 		// Check allowed withdrawal
-		require(value == _value, "RestaurantEscrow#withdraw: Reward value mismatch");
+		require(value <= _rewardBalance,
+			"RestaurantEscrow#withdraw: value > reward balance for order");
 
 		// Burn order
 		_burn(RESTAURANT_ADDESS, orderId, value);

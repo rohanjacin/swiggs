@@ -30,7 +30,7 @@ SwiggsNetwork.prototype.connect = async function () {
 
 	this.Restaurant = await hre.ethers.getContractFactory('Restaurant');
 
-	this.sampleRestaurant = await this.Restaurant.attach('0xdaF5fa1c65D45367a89c62b49DA5e0245e317F2C');
+	this.sampleRestaurant = await this.Restaurant.attach('0x42B249BCeC98A6775085f1f209B66A9F106A1C2b');
  	console.log(`Attached to SwiggsNetwork contract`);
 
  	// Use first signer as owner
@@ -39,11 +39,16 @@ SwiggsNetwork.prototype.connect = async function () {
  	console.log("Owner's address:", this.owner.address);
 }
 
-SwiggsNetwork.prototype.getRestaurantId = async function () {
+SwiggsNetwork.prototype.getRestaurantInfo = async function () {
 
-	const id = await this.sampleRestaurant.connect(this.owner).
-						getId();
-	console.log("Restaurant Id:" + id);
+	const info = await this.sampleRestaurant.connect(this.owner).
+						getInfo();
+	console.log("Restaurant Id:" + info.id);
+	console.log("Restaurant uuid:" + info.uuid);
+	console.log("Restaurant fssai:" + info.fssai);
+	console.log("Restaurant owner:" + info.owner);
+	console.log("Restaurant url:" + info.url);
+	console.log("Restaurant escrowAddress:" + info.escrowAddress);
 }
 
 SwiggsNetwork.prototype.registerOwner = async function (escrowAddress) {
@@ -57,6 +62,18 @@ SwiggsNetwork.prototype.registerOwner = async function (escrowAddress) {
 							this.info.fssai, this.info.url,
 							this.info.escrowAddress, {value: value});
 	console.log("Registered Restaurant");
+}
+
+SwiggsNetwork.prototype.depositReward = async function (orderId, value) {
+
+	let _value = hre.ethers.parseEther(value, 'eth'); // bid price for room
+
+	await this.sampleRestaurant.connect(this.owner).
+						depositReward(orderId, _value, {value: _value});
+	console.log("Deposited Reward");
+
+	let _balance = await hre.ethers.provider.getBalance(this.owner);
+	console.log("_balance:", hre.ethers.formatEther(_balance));
 }
 
 var swiggsnetwork = new SwiggsNetwork();
@@ -73,9 +90,13 @@ var swiggsnetwork = new SwiggsNetwork();
 	});
 
 	console.log("Register restaurant info..");
-	await swiggsnetwork.registerOwner("0x89c4975fEb7040aD89AE19fDd80a4331019caF4d").catch((error) => {
+	await swiggsnetwork.registerOwner("0xb69b9afaB8195aC88cFEF7aFC67f6CC396f6fCD7").catch((error) => {
 		console.error(error);
 		process.exitCode = 1;
 	});
 
+	await swiggsnetwork.depositReward(1, '100').catch((error) => {
+		console.error(error);
+		process.exitCode = 1;
+	});	
 })();
