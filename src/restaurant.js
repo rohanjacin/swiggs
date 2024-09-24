@@ -19,7 +19,6 @@ class SwiggsNetwork {
 
 	constructor(){
 		this.sampleRestaurant = null;
-		this.Restaurant = null;
 		this.owner = null;
 		this.info = null;		
 	}
@@ -28,9 +27,8 @@ class SwiggsNetwork {
 // Connect to the Swiggs contract
 SwiggsNetwork.prototype.connect = async function () {
 
-	this.Restaurant = await hre.ethers.getContractFactory('Restaurant');
-
-	this.sampleRestaurant = await this.Restaurant.attach('0x42B249BCeC98A6775085f1f209B66A9F106A1C2b');
+	this.sampleRestaurant = await hre.ethers.getContractAt(
+		'Restaurant', '0x36DC78Be1Fb7E4594d7C8fDA7Dcbc492a22ba6cb');
  	console.log(`Attached to SwiggsNetwork contract`);
 
  	// Use first signer as owner
@@ -83,14 +81,8 @@ var swiggsnetwork = new SwiggsNetwork();
 		process.exitCode = 1;
 	});
 
-	console.log("Getting restaurant id..");
-	await swiggsnetwork.getRestaurantId().catch(() => {
-		console.log(error);
-		process.exitCode = 1;
-	});
-
 	console.log("Register restaurant info..");
-	await swiggsnetwork.registerOwner("0xb69b9afaB8195aC88cFEF7aFC67f6CC396f6fCD7").catch((error) => {
+	await swiggsnetwork.registerOwner("0x0FC9bD43Ea8dcA688FCBd84250ffD56F754984a2").catch((error) => {
 		console.error(error);
 		process.exitCode = 1;
 	});

@@ -8,7 +8,6 @@
     "@account-abstraction/contracts": "^0.7.0",
     "@account-abstraction/utils": "^0.6.0",
     "@openzeppelin/contracts": "^5.0.2",
-    "@uniswap/v3-periphery": "^1.4.4",
     "hardhat-contract-sizer": "^2.10.0"
   }
 }
