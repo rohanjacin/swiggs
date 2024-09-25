@@ -8,6 +8,9 @@
     "@account-abstraction/contracts": "^0.7.0",
     "@account-abstraction/utils": "^0.6.0",
     "@openzeppelin/contracts": "^5.0.2",
+    "arrayify": "^1.0.0",
+    "ethereumjs-util": "^7.1.5",
+    "ethers": "^6.13.2",
     "hardhat-contract-sizer": "^2.10.0"
   }
 }

@@ -112,6 +112,16 @@ contract RestaurantAccount is BaseAccount {
         }
     }
 
+     // check current account deposit in the entryPoint
+    function getDeposit() public view returns (uint256) {
+        return entryPoint().balanceOf(address(this));
+    }
+
+    // deposit more funds for this account in the entryPoint
+    function addDeposit() public payable {
+        entryPoint().depositTo{value: msg.value}(address(this));
+    }
+
     modifier onlyOwner {
         if ((msg.sender != owner) && (msg.sender != address(entryPointAA))) revert();
         _;
