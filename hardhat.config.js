@@ -19,10 +19,10 @@ module.exports = {
       }
     }],
 
-/*    path: {
-      sources: ["./contracts", "node_modules/@account-abstraction/contracts/core/EntryPoind"]
+    path: {
+      sources: ["./contracts", "./node_modules/@account-abstraction/contracts/core/EntryPoint.sol"]
     }
-*/  },
+  },
 
   defaultNetwork: "localhost",
   networks: {

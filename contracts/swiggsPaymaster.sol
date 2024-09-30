@@ -52,26 +52,33 @@ contract SwiggsPaymaster is BasePaymaster {
     /// @param requiredPreFund The maximum cost (in native token) the paymaster has to prefund.
     /// @return context The context containing the native token amount and user sender address (if applicable).
     /// @return validationResult A uint256 value indicating the result of the validation (always 0 in this implementation).
-    function _validatePaymasterUserOp(PackedUserOperation calldata userOp, bytes32, uint256 requiredPreFund)
-    internal
-    override
+    function _validatePaymasterUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash, uint256 requiredPreFund)
+    internal override view
     returns (bytes memory context, uint256 validationResult) {unchecked {
             // calculated cost of the postOp
 
+            userOpHash; // unused
+            console.log("In swiggs _validatePaymasterUserOp:", requiredPreFund);
             uint256 maxFeePerGas = userOp.unpackMaxFeePerGas();
+            console.log("maxFeePerGas:", maxFeePerGas);
             uint256 totalPreFund  = requiredPreFund + (COST_OF_POST * maxFeePerGas);
+            console.log("totalPreFund:", totalPreFund);
+            console.log("address(this).balance:", address(this).balance);
 
-            require (address(this).balance > totalPreFund, "Paymaster balance too low");
-            
+            //require (address(this).balance > totalPreFund, "Paymaster balance too low");
+            console.log("after return");
             //TODO: Check this again
-            entryPoint.depositTo{value: totalPreFund}(address(this));
+            //entryPoint.depositTo{value: totalPreFund}(address(this));
+            console.log("after deposit");
 
             context = abi.encode(totalPreFund, userOp.sender);
+            console.log("context:");
             validationResult = _packValidationData(
                 false,
                 0,
                 0
             );
+            //console.log("validationResult:", validationResult);
         }
     }
 
@@ -82,21 +89,33 @@ contract SwiggsPaymaster is BasePaymaster {
     /// @param actualUserOpFeePerGas - the gas price this UserOp pays. This value is based on the UserOp's maxFeePerGas
     //      and maxPriorityFee (and basefee)
     //      It is not the same as tx.gasprice, which is what the bundler pays.
-    function _postOp(PostOpMode, bytes calldata context, uint256 actualGasCost, uint256 actualUserOpFeePerGas) internal override {
+    function _postOp(PostOpMode _mode, bytes calldata context, uint256 actualGasCost, uint256 actualUserOpFeePerGas) internal override {
+        console.log("In swiggs _postOp:actualGasCost:", actualGasCost);
+        console.log("_actualUserOpFeePerGas:", actualUserOpFeePerGas);
+
+        _mode; // unused
         unchecked {
             (
                 uint256 preCharge,
                 address userOpSender
             ) = abi.decode(context, (uint256, address));
 
+            console.log("preCharge:", preCharge);
+            console.log("userOpSender:", userOpSender);
+
             // Refund tokens based on actual gas cost
             uint256 actualChargeNative = actualGasCost + COST_OF_POST * actualUserOpFeePerGas;
+            console.log("actualChargeNative:", actualChargeNative);
 
             if (preCharge > actualChargeNative) {
+                console.log("preCharge>:");
+
                 // If the initially provided amount is greater than the actual amount needed, refund the difference
-                payable(userOpSender).transfer(preCharge - actualChargeNative);
+                //payable(userOpSender).transfer(preCharge - actualChargeNative);
 
             } else if (preCharge < actualChargeNative) {
+
+                console.log("preCharge<:");
                 // Attempt to cover Paymaster's gas expenses by withdrawing the 'overdraft' from the client
                 // If the transfer reverts also revert the 'postOp' to remove the incentive to cheat
             }
@@ -110,9 +129,19 @@ contract SwiggsPaymaster is BasePaymaster {
         emit Received(msg.sender, msg.value);
     }
     
+    // Deposits eth required to pay for userop gas
+    function depositEth() external payable onlyOwner {
+        entryPoint.depositTo{value: msg.value}(address(this));
+    }
+
+    // Fetches balance deposit
+    function getBalance() external view onlyOwner returns(uint256) {
+        return entryPoint.balanceOf(address(this));
+    }
+
+    // Withdraw deposited eth  
     function withdrawEth(address payable recipient, uint256 amount) external onlyOwner {
-        (bool success,) = recipient.call{value: amount}("");
-        require(success, "withdraw failed");
+        entryPoint.withdrawTo(recipient, amount);
     }
 
 }

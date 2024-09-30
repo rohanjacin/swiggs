@@ -4,10 +4,7 @@ pragma solidity ^0.8.20;
 
 interface IRestaurant {
 
-    // Fetches restuaurant information
-    function getInfo() external view returns(address owner,
-        uint256 uuid, uint256 fssai, uint256 id,
-        string memory url, address payable escrowAddress);
+    function getInfo() external view;
 
     // Register restaurant details (other than restaurant id)
     function registerOwner(uint256 _id, uint256 _uuid,

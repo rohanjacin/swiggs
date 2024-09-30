@@ -21,16 +21,16 @@ contract Swiggs {
 		address restaurantAt, address escrowAt);
 
 	// Deploys the restaurant's smart contract
-	function deployRestaurant(uint256 restaurantId, address ownerAddress,
+	function deployRestaurant(uint256 restaurantId,
 		bytes memory restaurantInitCode, bytes memory escrowInitCode)
 	public payable returns (bool success) {
 
 		// Deploy restaurant's smart contract
 		address restaurantAt = _deployRestaurantContract(
-			restaurantId, ownerAddress, restaurantInitCode);
+			restaurantId, restaurantInitCode);
 
 		address escrowAt = _deployRestaurantEscrowContract(
-			restaurantId, ownerAddress, restaurantAt, escrowInitCode);
+			restaurantId, restaurantAt, escrowInitCode);
 		//console.log("Done..");
 
 		emit RestaurantDeployed(restaurantId, restaurantAt, escrowAt);
@@ -38,19 +38,17 @@ contract Swiggs {
 	}
 
 	function _deployRestaurantContract(uint256 restaurantId,
-		address ownerAddress, bytes memory restaurantInitCode)
+		bytes memory restaurantInitCode)
 		internal returns(address) {
 
 		address payable addr;
 		bytes32 _salt;
 		//bytes memory initCode = type(Restaurant).creationCode;
 
-		//console.log("restaurantId:", restaurantId);
 		_salt = keccak256(abi.encodePacked(restaurantId));
-		//console.log("_salt:", uint256(_salt));
 
 		bytes memory byteCode = abi.encodePacked(restaurantInitCode,
-			uint256(restaurantId), abi.encode(address(ownerAddress)));
+			uint256(restaurantId), abi.encode(address(this)));
 
 		//console.log("creating restaurant contract..:", restaurantId);
 
@@ -72,7 +70,7 @@ contract Swiggs {
 	}
 
 	function _deployRestaurantEscrowContract(uint256 restaurantId,
-		address ownerAddress, address restaurantDeployedAddress,
+		address restaurantDeployedAddress,
 		bytes memory escrowInitCode) internal
 		returns(address) {
 
@@ -80,14 +78,12 @@ contract Swiggs {
 		bytes32 _salt;
 		//bytes memory initCode = type(RestaurantEscrow).creationCode;
 
-		//console.log("restaurantId:", restaurantId);
-		//console.log("ownerAddress:", ownerAddress);
 		// TODO: Audit the salt hash for leakage
-		_salt = keccak256(abi.encodePacked(restaurantId, ownerAddress));
+		_salt = keccak256(abi.encodePacked(restaurantId, address(this)));
 		//console.log("_salt:", uint256(_salt));
 
 		bytes memory byteCode = abi.encodePacked(escrowInitCode,
-			abi.encode(address(restaurantDeployedAddress)));
+			abi.encode(address(restaurantDeployedAddress), address(this)));
 		//console.log("creating restaurant escrow contract..:", restaurantId);
 
 		// Deploy restaurant's contract

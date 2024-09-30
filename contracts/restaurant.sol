@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 
 import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 import "./restaurantEscrow.sol";
+import "./IRestaurantAccount.sol";
 import "hardhat/console.sol";
 
 // Restaurant Owner's context
@@ -23,8 +24,6 @@ abstract contract Restaurant is ERC1155Holder {
 	address public owner;
 	RestaurantInfo info;
 
-	address constant internal SWIGGS_ADDRESS = address(0x01);  
-
 	// Restaurant Owner registered event
 	event RestaurantOwnerRegistered(uint256 indexed id,
 		address escrowAt, address indexed ownerAddress);
@@ -32,7 +31,7 @@ abstract contract Restaurant is ERC1155Holder {
 	constructor (uint256 _id, address _owner) {
 
 		id = _id; // Restaurant id
-		owner = _owner; // Restaurant owner's addess
+		owner = _owner; // Contract owner
 		console.log("Restaurant Init:", id);
 		console.log("Restaurant Owner:", owner);
 		console.log("Restaurant contract address:", address(this));
@@ -50,22 +49,30 @@ abstract contract Restaurant is ERC1155Holder {
 	// Register restaurant details (other than restaurant id)
 	function registerOwner(uint256 _id, uint256 _uuid,
 		uint256 _fssai, string memory _url,
+		address _restaurantOwner,
 		address payable _escrowAddress)
-		external payable onlyOwner {
+		external payable onlyAdmin {
 
 		console.log("In registerOwner:", _id);
 		console.log("In registerOwner id:", id);
+		console.log("In registerOwner (_id != id):", (_id != id));
+
+    	require(_restaurantOwner != address(0), "Restaurant a/c address cannot be zero");
 
 		// Check if restaurant id matches
-		if (_id != id) revert();
+		//if (_id != id) revert();
 
 		// Add restuarant details
-		info.owner = msg.sender;
+		info.owner = _restaurantOwner;
 		info.uuid = _uuid;
 		info.fssai = _fssai;
 		info.url = _url;
 		info.escrowAddress = _escrowAddress;
 		console.log("register Owner done.");
+
+		require(IRestaurantAccount(_restaurantOwner)
+				.linkRestaurant{value: msg.value}(_restaurantOwner),
+				"Could not link with restaurant account");
 
 		emit RestaurantOwnerRegistered(id, info.escrowAddress,
 			info.owner);
@@ -73,7 +80,7 @@ abstract contract Restaurant is ERC1155Holder {
 
 	// Start operations by enabling rewards
 	function startOperations() external
-		onlyRegisteredOwner {
+		onlyAdmin onlyOwner {
 		RestaurantEscrow escrow = RestaurantEscrow(info.escrowAddress);
 
 		assembly {
@@ -87,7 +94,7 @@ abstract contract Restaurant is ERC1155Holder {
 
 	// Stop or halt operations by disabling rewards
 	function stopOperations() external
-		onlyRegisteredOwner {
+		onlyAdmin onlyOwner {
 		RestaurantEscrow escrow = RestaurantEscrow(info.escrowAddress);
 
 		assembly {
@@ -102,7 +109,7 @@ abstract contract Restaurant is ERC1155Holder {
 
 	// Deposit order's reward amount in the escrow account  
 	function depositReward(uint256 orderId, uint256 value) 
-		external payable onlyRegisteredOwner {
+		external payable onlyOwner {
 
 		console.log("In depositReward..");
 
@@ -115,7 +122,7 @@ abstract contract Restaurant is ERC1155Holder {
 
 	// Withdraw order's reward amount in the escrow account  
 	function withdrawReward(uint256 orderId) 
-		external onlyRegisteredOwner {
+		external onlyOwner {
 
 		console.log("In withdrawReward..");
 
@@ -126,13 +133,13 @@ abstract contract Restaurant is ERC1155Holder {
 		console.log("Reward withdrawn..");
 	}
 
-    modifier onlyOwner {
-        if (msg.sender != owner) revert();
+    modifier onlyAdmin {
+        if (msg.sender != owner) revert("Not Admin");
         _;
     }
 
-    modifier onlyRegisteredOwner {
-        if (msg.sender != info.owner) revert();
+    modifier onlyOwner {
+        if (msg.sender != info.owner) revert("Not Owner");
         _;
     }
 

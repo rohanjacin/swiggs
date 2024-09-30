@@ -5,19 +5,20 @@ class UserOperation {
 
 	constructor(sender, nonce, initCode, callData, paymaster) {
 	  this.sender = sender; //string
-	  this.nonce = nonce; //BigNumber
-	  this.initCode = initCode; //bytes
-	  this.callData = callData; //bytes
+	  this.nonce = "0x0";//nonce; //BigNumber
+	  this.initCode = "" + initCode; //bytes
+	  //console.log("initCode:", this.initCode);
+	  this.callData = "" + callData; //bytes
 	  this.paymaster = paymaster; //string
 	  this.signature = 0; //bytes
-	  this.callGasLimit = 0;
-	  this.verificationGasLimit = 150000;
-	  this.preVerificationGas = 21000;
-	  this.maxFeePerGas = 0;
-	  this.maxPriorityFeePerGas = 1000000000;
+	  this.callGasLimit = 100000;
+	  this.verificationGasLimit = 500000;
+	  this.preVerificationGas = '0x5208';//21000;
+	  this.maxFeePerGas = 1;
+	  this.maxPriorityFeePerGas = 10000;
 	  this.paymasterData = '0x';
 	  this.paymasterVerificationGasLimit = 300000;
-	  this.paymasterPostOpGasLimit = 0;
+	  this.paymasterPostOpGasLimit = 200000;
 	  this.accountGasLimits = 0;
 	  this.gasFees = 0;
 	  this.paymasterAndData = 0;
@@ -35,8 +36,7 @@ UserOperation.prototype.packUserOp = async function () {
 
 	const paymasterAndData = ethers.concat([this.paymaster,
 		ethers.zeroPadValue(ethers.toBeHex(this.paymasterVerificationGasLimit), 16),
-		ethers.zeroPadValue(ethers.toBeHex(this.paymasterPostOpGasLimit), 16),
-		this.paymasterData]);
+		ethers.zeroPadValue(ethers.toBeHex(this.paymasterPostOpGasLimit), 16)]);
 
 	this.accountGasLimits = accountGasLimits;
 	this.gasFees = gasFees;
@@ -92,10 +92,22 @@ UserOperation.prototype.signUserOp = function(signer, entryPoint, chainId) {
   // (but without "async"
   const signedMessage1 = ethjs_util.toRpcSig(sig.v, sig.r, sig.s)
   console.log("signedMessage1:", signedMessage1);
-  return {
-    signature: signedMessage1
-  }
+  return signedMessage1;
+}
 
+UserOperation.prototype.format = function() {
+	console.log("CALLDATA:", this.callData);
+	return {
+		sender: this.sender,
+		nonce: this.nonce,
+		initCode: this.initCode,
+		callData: this.callData,
+		accountGasLimits: this.accountGasLimits,
+		preVerificationGas: this.preVerificationGas,
+		gasFees: this.gasFees,
+		paymasterAndData: this.paymasterAndData,
+		signature: this.signature
+	}
 }
 
 module.exports = UserOperation;

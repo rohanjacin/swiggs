@@ -3,13 +3,16 @@ const ID = 0x1234;
 const UUID = 0x23848320;
 const FSSAI = 0x20139847;
 const URL = "https://thrive.restaurantId.com/api/restaurant/{id}.json";
+const RESTAURANT = require("./RestaurantABI.js");
+const RESTAURANTESCROW = require("./RestaurantEscrowABI.js");
 
 class RestaurantInfo {
-	constructor(id, uuid, fssai, url, escrowAddress) {
+	constructor(id, uuid, fssai, url, ownerAddress, escrowAddress) {
 		this.id = id;
 		this.uuid = uuid;
 		this.fssai = fssai;
 		this.url = url;
+		this.ownerAddress = ownerAddress;
 		this.escrowAddress = escrowAddress;
 	}
 }
@@ -19,22 +22,56 @@ class SwiggsNetwork {
 
 	constructor(){
 		this.sampleRestaurant = null;
+		this.sampleRestaurantAddress = null;
 		this.owner = null;
-		this.info = null;		
+		this.info = new RestaurantInfo();
+		this.sampleSwiggsAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3";		
 	}
 }
 
 // Connect to the Swiggs contract
-SwiggsNetwork.prototype.connect = async function () {
-
-	this.sampleRestaurant = await hre.ethers.getContractAt(
-		'Restaurant', '0x36DC78Be1Fb7E4594d7C8fDA7Dcbc492a22ba6cb');
- 	console.log(`Attached to SwiggsNetwork contract`);
+SwiggsNetwork.prototype.connect = async function (restaurantId) {
 
  	// Use first signer as owner
  	let _owner = await hre.ethers.getSigners();
  	this.owner = _owner[2];
  	console.log("Owner's address:", this.owner.address);
+
+	// Connect to restaurant contract
+	const _from = this.sampleSwiggsAddress;
+	const _salt = hre.ethers.solidityPackedKeccak256(["uint256"], [restaurantId]);
+	const AbiCoder = new hre.ethers.AbiCoder();
+	let _o = await AbiCoder.encode(["address"], [_from]);
+
+	const _initCode = hre.ethers.solidityPacked(
+		["bytes", "uint256", "bytes"],
+		[RESTAURANT.BYTECODE, restaurantId, _o]);
+	const _initCode2 = await hre.ethers.keccak256(_initCode);
+
+	const _restaurantAddress = await hre.ethers.getCreate2Address(
+		_from, _salt, _initCode2);
+	console.log("_restaurantAddress:", _restaurantAddress);	
+
+	this.sampleRestaurant = await hre.ethers.getContractAt(
+		'Restaurant', _restaurantAddress);
+ 	console.log(`Attached to SwiggsNetwork contract`);
+ 	this.sampleRestaurantAddress = _restaurantAddress;
+
+ 	this.registerRestaurantEvents(restaurantId);
+}
+
+SwiggsNetwork.prototype.registerRestaurantEvents = function (restaurantId) {
+
+	filter = this.sampleRestaurant.filters.RestaurantOwnerRegistered(
+				restaurantId, null, null);
+	this.sampleRestaurant.on(filter, (results) => {
+
+		console.log('Restaurant owner register done..'); 
+		console.log('id=' + results.args.id);
+		console.log('escrowAt=' + results.args.escrowAt);
+		console.log('ownerAddress=' + results.args.ownerAddress);
+
+	});
 }
 
 SwiggsNetwork.prototype.getRestaurantInfo = async function () {
@@ -49,46 +86,59 @@ SwiggsNetwork.prototype.getRestaurantInfo = async function () {
 	console.log("Restaurant escrowAddress:" + info.escrowAddress);
 }
 
-SwiggsNetwork.prototype.registerOwner = async function (escrowAddress) {
+SwiggsNetwork.prototype.registerOwner = async function (info) {
 
-	let value = hre.ethers.parseEther('1000', 'gwei'); // bid price for room
+	// Connect to restaurant contract
+	const _from = this.sampleSwiggsAddress;
+	console.log("_from:", _from);
+	const _salt = hre.ethers.solidityPackedKeccak256(["uint256", "address"],
+						 [info.id, _from]);
+	const AbiCoder = new hre.ethers.AbiCoder();
+	let _o = await AbiCoder.encode(["address"], [_from]);
+	let _p = await AbiCoder.encode(["address"], [this.sampleRestaurantAddress]);
 
-	this.info = new RestaurantInfo(ID, UUID, FSSAI, URL, escrowAddress);
-	console.log("Is Address:", hre.ethers.isAddress(escrowAddress));
-	await this.sampleRestaurant.connect(this.owner).
-						registerOwner(this.info.id, this.info.uuid,
+	const _initCode = hre.ethers.solidityPacked(
+		["bytes", "bytes", "bytes"],
+		[RESTAURANTESCROW.BYTECODE, _p, _o]);
+	const _initCode2 = await hre.ethers.keccak256(_initCode);
+
+	const _restaurantEscrowAddress = await hre.ethers.getCreate2Address(
+		_from, _salt, _initCode2);
+	console.log("Escrow A/C Is address:", hre.ethers.isAddress(_restaurantEscrowAddress));
+	console.log("restaurantEscrowAddress:", _restaurantEscrowAddress);	
+
+	let value = hre.ethers.parseEther('1000', 'gwei');
+
+	//this.info = new RestaurantInfo(ID, UUID, FSSAI, URL, escrowAddress);
+	this.info.id = info.id;
+	this.info.uuid = info.uuid;
+	this.info.fssai = info.fssai;
+	this.info.url = info.url;
+	this.info.ownerAddress = info.ownerAddress;
+	this.info.escrowAddress = _restaurantEscrowAddress;
+
+	await this.sampleRestaurant.connect(this.sampleSwiggsAddress).registerOwner(this.info.id, this.info.uuid,
 							this.info.fssai, this.info.url,
 							this.info.escrowAddress, {value: value});
 	console.log("Registered Restaurant");
 }
 
-SwiggsNetwork.prototype.depositReward = async function (orderId, value) {
-
-	let _value = hre.ethers.parseEther(value, 'eth'); // bid price for room
-
-	await this.sampleRestaurant.connect(this.owner).
-						depositReward(orderId, _value, {value: _value});
-	console.log("Deposited Reward");
-
-	let _balance = await hre.ethers.provider.getBalance(this.owner);
-	console.log("_balance:", hre.ethers.formatEther(_balance));
-}
-
 var swiggsnetwork = new SwiggsNetwork();
 (async () => {
-	await swiggsnetwork.connect().catch((error) => {
+	await swiggsnetwork.connect(ID).catch((error) => {
 		console.error(error);
 		process.exitCode = 1;
 	});
 
-	console.log("Register restaurant info..");
-	await swiggsnetwork.registerOwner("0x0FC9bD43Ea8dcA688FCBd84250ffD56F754984a2").catch((error) => {
-		console.error(error);
-		process.exitCode = 1;
-	});
+	setTimeout(async () => {
+		console.log("Register restaurant info..");
+		restInfo = new RestaurantInfo(ID, UUID, FSSAI, URL,
+						"0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9", "0x0");
 
-	await swiggsnetwork.depositReward(1, '100').catch((error) => {
-		console.error(error);
-		process.exitCode = 1;
-	});	
+		await swiggsnetwork.registerOwner(restInfo).catch((error) => {
+			console.error(error);
+			process.exitCode = 1;
+		});
+
+	}, 2000);
 })();

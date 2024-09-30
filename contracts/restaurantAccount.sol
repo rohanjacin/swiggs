@@ -3,41 +3,32 @@
 pragma solidity ^0.8.20;
 
 import "@account-abstraction/contracts/core/BaseAccount.sol";
+import "@account-abstraction/contracts/interfaces/IAccountExecute.sol";
 import "@account-abstraction/contracts/core/Helpers.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import "./restaurant.sol";
+import "./IRestaurant.sol";
 import "hardhat/console.sol";
 
 // Main Contract
-contract RestaurantAccount is BaseAccount {
+contract RestaurantAccount is BaseAccount, IAccountExecute {
 
 	address public owner;
-	address private restaurantAddress;
-	Restaurant private restaurant;
+	address internal restaurantAddress;
 	IEntryPoint private immutable entryPointAA;
 
-	constructor (address _owner, address _restaurantAddress,
-		IEntryPoint _entryPointAA) {
+	constructor (address _owner, IEntryPoint _entryPointAA) {
 
 		console.log("\nIn constructor of RestaurantAccount");
 		console.log("_owner:", _owner);
-		console.log("_restaurantAddress:", _restaurantAddress);
 
-		owner = _owner; // Restaurant _owner
-		restaurantAddress = _restaurantAddress;
-		Restaurant _restaurant = Restaurant(restaurantAddress);
-
-		assembly {
-			if iszero(extcodesize(_restaurant)) {
-				revert(0, 0)
-			}
-		}
-		restaurant = _restaurant;	
+		owner = _owner; // Contract _owner
 		entryPointAA = _entryPointAA; // Entry point contract for AA 
 		console.log("Restaurant owner address:", owner);
-
 	}
+
+    event Executed(PackedUserOperation userOp, bytes innerCallRet);
 
     // Inherited from BaseAccount override here
     // Entry point for restaurant owner operations/transcations
@@ -69,6 +60,8 @@ contract RestaurantAccount is BaseAccount {
         uint256 missingAccountFunds
     ) external override returns (uint256 validationData) {
 
+    	missingAccountFunds; // unused
+    	console.log("\n\nvalidateUserOp");
     	// validate the signature
         validationData = _validateSignature(userOp, userOpHash);
         _validateNonce(userOp.nonce);
@@ -80,51 +73,67 @@ contract RestaurantAccount is BaseAccount {
         require(_validateSelector(_sel), "Not a valid selector");
     }
 
-	function _validateSelector(bytes4 _selector) 
-		internal view returns (bool ret) {
+	function _validateSelector(bytes4 _selector) internal pure returns (bool ret) {
 
 		ret = false;
 
-		if ((restaurant.getInfo.selector == _selector) ||
-			(restaurant.registerOwner.selector == _selector) ||
-			(restaurant.startOperations.selector == _selector) ||
-			(restaurant.stopOperations.selector == _selector) ||
-			(restaurant.depositReward.selector == _selector) ||
-			(restaurant.withdrawReward.selector == _selector)) {
+		if (this.executeUserOp.selector == _selector) {
 			ret = true;
 		}
 							
         return ret;
     }
 
+    // Link the restaurant contract on owner registration
+    function linkRestaurant(address _restaurantAddress)
+    	external payable onlyOwner returns(bool) {
+
+    	console.log("Link restaurant:", _restaurantAddress);
+    	require(_restaurantAddress != address(0), "Restaurant address cannot be zero");
+    	restaurantAddress = _restaurantAddress;
+    	return true;
+    } 
+
     // Proxy for restaurant#functions
-    function execute(address dest, uint256 value, bytes calldata func)
-    	external onlyOwner {
-    	_call(dest, value, func);
-    }
+    function executeUserOp(PackedUserOperation calldata userOp, bytes32 /*userOpHash*/)
+    	external onlyOwnerOrEntryPoint() {
 
-    function _call(address target, uint256 value, bytes memory data) internal {
-        (bool success, bytes memory result) = target.call{value: value}(data);
-        if (!success) {
-            assembly {
-                revert(add(result, 32), mload(result))
-            }
+        // read from the userOp.callData, but skip the "magic" prefix (executeUserOp sig),
+        // which caused it to call this method.
+        bytes calldata innerCall = userOp.callData[4 :];
+        bytes memory innerCallRet;
+/*
+		if ((this.interface.executeUserOp.selector == _selector) ||
+			(IRestaurant.registerOwner.selector == _selector) ||
+			(IRestaurant.startOperations.selector == _selector) ||
+			(IRestaurant.stopOperations.selector == _selector) ||
+			(IRestaurant.depositReward.selector == _selector) ||
+			(IRestaurant.withdrawReward.selector == _selector)) {
+			ret = true;
+		}
+*/
+        console.log("in executeUserOp");
+        if (innerCall.length > 0) {
+            (address target, bytes memory data) = abi.decode(innerCall, (address, bytes));
+            bool success;
+            console.log("target:", target);
+
+            require(target == restaurantAddress, "inner call failed");
+		
+            (success, innerCallRet) = target.call(data);
+            require(success, "inner call failed");
         }
-    }
 
-     // check current account deposit in the entryPoint
-    function getDeposit() public view returns (uint256) {
-        return entryPoint().balanceOf(address(this));
-    }
-
-    // deposit more funds for this account in the entryPoint
-    function addDeposit() public payable {
-        entryPoint().depositTo{value: msg.value}(address(this));
+        emit Executed(userOp, innerCallRet);
     }
 
     modifier onlyOwner {
-        if ((msg.sender != owner) && (msg.sender != address(entryPointAA))) revert();
+        if (msg.sender != owner) revert();
         _;
     }    
 
+    modifier onlyOwnerOrEntryPoint {
+        if ((msg.sender != owner) && (msg.sender != address(entryPointAA))) revert();
+        _;
+    }
 }

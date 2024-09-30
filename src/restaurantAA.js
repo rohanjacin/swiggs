@@ -3,9 +3,9 @@ const ethers = require("ethers");
 const UserOp = require("./userOp.js");
 const RESTAURANT = require("./RestaurantABI.js");
 
-const ID = 0x1234;
-const UUID = 0x23848320;
-const FSSAI = 0x20139847;
+const ID = "0x1234";
+const UUID = "0x23848320";
+const FSSAI = "0x20139847";
 const URL = "https://thrive.restaurantId.com/api/restaurant/{id}.json";
 
 class RestaurantInfo {
@@ -23,8 +23,10 @@ class SwiggsNetwork {
 
 	constructor(){
 		this.entryPoint = null;
+		this.entryPointAddress = null;
 		this.sampleRestaurant = null;
 		this.owner = null;
+		this.admin = null;
 		this.info = null;		
 	}
 }
@@ -36,32 +38,44 @@ SwiggsNetwork.prototype.connect = async function (_id) {
  	this.restaurantAccount = await hre.ethers.getContractAt(
  		'RestaurantAccount', '0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9');
  	console.log(`Attached to SwiggsNetwork via Restaurant Account ID:`, _id);
+ 	console.log("restaurantAccount:", this.restaurantAccount.target);
+
+ 	// Get Restaurant
+	this.sampleRestaurant = await hre.ethers.getContractAt(
+		'Restaurant', '0xB6303f71828383CF11f8cdE833aa10483ebfCc89');
+ 	console.log("restaurant contract:", this.sampleRestaurant.target);
 
 	// Get EntryPoint
- 	this.entryPoint = await this.restaurantAccount.entryPoint();
- 	console.log("EntryPoint:", this.entryPoint);
+ 	this.entryPointAddress = await this.restaurantAccount.entryPoint();
+ 	this.entryPoint = await hre.ethers.getContractAt(
+ 		'IEntryPoint', this.entryPointAddress);
+ 	console.log("EntryPoint:", this.entryPointAddress);
+
+ 	this.paymaster = await hre.ethers.getContractAt(
+ 		'SwiggsPaymaster', '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0');
+ 	console.log("paymaster:", this.paymaster.target);
 
  	// Use first signer as owner
  	let _owner = await hre.ethers.getSigners();
  	this.owner = _owner[2];
+ 	this.admin = _owner[1];
  	console.log("Owner's address:", this.owner.address);
-
- 	// Deposit into entry point
- 	this.restaurantAccount.connect(this.owner).addDeposit({value: 1000000});
 }
 
 // Connect to the Swiggs network (EntryPoint)
 SwiggsNetwork.prototype.registerOwner = async function () {
 
-	let abi = ["function registerOwner(uint256 _id, uint256 _uuid, uint256 _fssai, string memory _url, address payable _escrowAddress)"];
-	const iface = new ethers.Interface(abi);
-	const cdata = iface.encodeFunctionData("registerOwner", 
-		[ID, UUID, FSSAI, URL, "0x0FC9bD43Ea8dcA688FCBd84250ffD56F754984a2"]);
+	const AbiCoder = new hre.ethers.AbiCoder();
+	const execSig = this.restaurantAccount.interface.getFunction('executeUserOp').selector;
 
-	let userOp = new UserOp(this.owner.address, 1n, RESTAURANT.BYTECODE,
-		cdata, "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0");
+	const registerOwnerCall = AbiCoder.encode(['address', 'bytes'],
+		[ this.sampleRestaurant.target,
+		  this.sampleRestaurant.interface.encodeFunctionData(
+		  	"registerOwner", [ID, UUID, FSSAI, URL, 
+		  	"0x0FC9bD43Ea8dcA688FCBd84250ffD56F754984a2"])
+		]);
 
-	console.log("this.owner.address:", this.owner.address);
+	const cdata = hre.ethers.concat([execSig, registerOwnerCall]);
 
     const accounts = hre.config.networks.hardhat.accounts;
     console.log("accounts:", accounts);
@@ -70,10 +84,15 @@ SwiggsNetwork.prototype.registerOwner = async function () {
     console.log("wallet.privateKey:", wallet.privateKey);
     console.log("address:", wallet.address);
 
-	let _signature = userOp.signUserOp(wallet, this.entryPoint, 31337);
-	//userOp.signature = _signature;
+	let userOp = new UserOp(this.restaurantAccount.target, 1n, "0x",
+		cdata, this.paymaster.target);
 
-	//console.log("_signature:", _signature);
+	let _signature = userOp.signUserOp(wallet, this.entryPoint.target, 31337);
+	userOp.signature = _signature;
+
+    const rcpt = await this.entryPoint.connect(this.owner).handleOps([userOp.format()], this.owner.address, {
+      gasLimit: 1e7
+    }).catch(e => console.log("Error:", e));
 }
 
 var swiggsnetwork = new SwiggsNetwork();

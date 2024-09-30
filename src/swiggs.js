@@ -7,11 +7,13 @@ class SwiggsNetwork {
 
 	constructor(){
 		this.sampleSwiggs = null;
+		this.sampleSwiggsAddress = null;
 		this.sampleRestaurant = null;
 		this.Swiggs = null;
 		this.RestaurantAA = null;
 		this.RestaurantAddress = null;
 		this.EntryPointAddress = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
+		this.Paymaster = null;		
 		this.admin = null;		
 	}
 }
@@ -20,14 +22,18 @@ class SwiggsNetwork {
 SwiggsNetwork.prototype.connect = async function () {
 
 	this.Swiggs = await hre.ethers.getContractFactory('Swiggs');
-
 	this.sampleSwiggs = await this.Swiggs.attach('0x5FbDB2315678afecb367f032d93F642f64180aa3');
  	console.log(`Attached to SwiggsNetwork contract`);
+	this.sampleSwiggsAddress = await this.sampleSwiggs.getAddress();
 
  	// Use first signer as admin
  	let _admin = await hre.ethers.getSigners();
  	this.admin = _admin[1];
  	console.log("Admin address:", this.admin.address);
+
+ 	this.Paymaster = await hre.ethers.getContractAt(
+ 		'SwiggsPaymaster', '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0');
+ 	console.log("paymaster:", this.Paymaster.target);
 
  	this.registerEvents();
 }
@@ -35,15 +41,13 @@ SwiggsNetwork.prototype.connect = async function () {
 // Register a restaurant with the Swiggs network
 SwiggsNetwork.prototype.deployRestaurant = async function (restaurantId) {
 
- 	let _address = await hre.ethers.getSigners();
- 	let _ownerAddress = _address[2];
- 	//let _oaddr = await _ownerAddress.getAddress();
- 	console.log("_oaddr:", _ownerAddress.address);
+ 	console.log("restaurant a/c:", this.sampleRestaurantAAAddress);
 
+ 	let iface = new hre.ethers.Interface(RESTAURANT.ABI);
 
 	// Register restaurant with restaurantId from Swiggy
 	await this.sampleSwiggs.connect(this.admin).deployRestaurant(
-				restaurantId, _ownerAddress, RESTAURANT.BYTECODE,
+				restaurantId, RESTAURANT.BYTECODE,
 				RESTAURANTESCROW.BYTECODE);
 	console.log("Deployed restaurant..");
 }
@@ -56,45 +60,15 @@ SwiggsNetwork.prototype.deployRestaurantAA = async function (restaurantId) {
  	//let _oaddr = await _ownerAddress.getAddress();
  	console.log("_oaddr:", _ownerAddress.address);
 
-	// Deploys swiggs contract
+	// Deploys restaurant account
 	this.RestaurantAA = await hre.ethers.getContractFactory('RestaurantAccount');
 	this.sampleRestaurantAA = await this.RestaurantAA.deploy(
 								_ownerAddress.address,
-								this.RestaurantAddress,
 								this.EntryPointAddress);
 	await this.sampleRestaurantAA.waitForDeployment();
 	this.sampleRestaurantAAAddress = await this.sampleRestaurantAA.getAddress(); 
 	console.log(`Restaurant AA deployed to ${this.sampleRestaurantAAAddress}`);
 
-}
-
-// Connects to the restaurant contract
-SwiggsNetwork.prototype.connectToRestaurant = async function (restaurantId) {
-
- 	let _address = await hre.ethers.getSigners();
- 	let _ownerAddress = _address[2];
-
-	// Connect to restaurant contract
-	const _from = await this.sampleSwiggs.getAddress();
-	console.log("_from:", _from);
-	const _salt = hre.ethers.solidityPackedKeccak256(["uint256"], [restaurantId]);
-	console.log("_salt:", _salt);
-	const AbiCoder = new hre.ethers.AbiCoder();
-	let _o = await AbiCoder.encode(["address"], [_ownerAddress.address]);
-
-	const _initCode = hre.ethers.solidityPacked(
-		["bytes", "uint256", "bytes"],
-		[RESTAURANT.BYTECODE, restaurantId, _o]);
-	const _initCode2 = await hre.ethers.keccak256(_initCode);
-
-	const _restaurantAddress = await hre.ethers.getCreate2Address(_from, _salt, _initCode2);
-	console.log("_restaurantAddress:", _restaurantAddress);	
-
-	this.sampleRestaurant = await hre.ethers.getContractAt(
-		'Restaurant', _restaurantAddress);
- 	console.log(`Attached to SwiggsNetwork contract`);
-
- 	this.registerRestaurantEvents(restaurantId);
 }
 
 SwiggsNetwork.prototype.registerEvents = function () {
@@ -110,18 +84,10 @@ SwiggsNetwork.prototype.registerEvents = function () {
 	});
 }
 
-SwiggsNetwork.prototype.registerRestaurantEvents = function (restaurantId) {
-
-	filter = this.sampleRestaurant.filters.RestaurantOwnerRegistered(
-				restaurantId, null, null);
-	this.sampleRestaurant.on(filter, (results) => {
-
-		console.log('Restaurant owner register done..'); 
-		console.log('id=' + results.args.id);
-		console.log('escrowAt=' + results.args.escrowAt);
-		console.log('ownerAddress=' + results.args.ownerAddress);
-
-	});
+SwiggsNetwork.prototype.depositGasFees = async function () {
+ 	// Deposit into entry point
+ 	let _value = hre.ethers.parseEther('100', 'eth');
+ 	await this.Paymaster.connect(this.admin).depositEth({value: _value});
 }
 
 var swiggsnetwork = new SwiggsNetwork();
@@ -131,27 +97,24 @@ var swiggsnetwork = new SwiggsNetwork();
 		process.exitCode = 1;
 	});
 
-	let id = 0x1234;
-	console.log("Trying to register a restaurant with id:", id);
-	await swiggsnetwork.deployRestaurant(id).catch((error) => {
+	await swiggsnetwork.depositGasFees().catch((error) => {
 		console.error(error);
 		process.exitCode = 1;
 	});
 
-	setTimeout(async () => {
-		console.log("Trying to deploy the restaurant AA");
-		await swiggsnetwork.deployRestaurantAA().catch((error) => {
-			console.log(error);
-			process.exitCode = 1;
-		});		
-	}, 3000);
+	let id = 0x1234;
+	console.log("Trying to deploy the restaurant AA");
+	await swiggsnetwork.deployRestaurantAA().catch((error) => {
+		console.log(error);
+		process.exitCode = 1;
+	});		
 
 	setTimeout(async () => {
-		console.log("Trying to deploy the restaurant AA");
-		await swiggsnetwork.connectToRestaurant(id).catch((error) => {
-				console.error(error);
-				process.exitCode = 1;
-		});		
-	}, 5000);
+		console.log("Trying to deploy restaurant with id:", id);
+		await swiggsnetwork.deployRestaurant(id).catch((error) => {
+			console.error(error);
+			process.exitCode = 1;
+		});
+	}, 1000);
 
 })();

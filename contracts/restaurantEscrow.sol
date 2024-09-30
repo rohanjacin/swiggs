@@ -9,18 +9,19 @@ import "hardhat/console.sol";
 // Restaurant Escrow account
 abstract contract RestaurantEscrow is ERC1155 {
 	
-	address internal RESTAURANT_ADDESS; 
+	address public owner;
+	address public restaurantAddess; 
 	uint256 internal nOrders = 0;
-	address constant internal SWIGGS_ADDRESS = address(0x01);  
-	uint256 NULL_ORDER = 1;
+	uint256 constant NULL_ORDER = 1;
 
-	constructor (address restaurantAddess) 
+	constructor (address _restaurantAddess, address _owner) 
 	ERC1155("https://thrive.restaurantId.com/api/orders/{id}.json") {
 
+		owner = _owner; // Contract owner
 		// Add the restaurant as a fixed participant 
-		RESTAURANT_ADDESS = restaurantAddess;
+		restaurantAddess = _restaurantAddess;
 		console.log("Restaurant escrow init: restaurant addr: ",
-			RESTAURANT_ADDESS);
+			restaurantAddess);
 		console.log("Escrow Address:", address(this));
 	}
 
@@ -29,7 +30,7 @@ abstract contract RestaurantEscrow is ERC1155 {
 
 		// TODO: do we need this? What if the owner wants
 		// to topup the reward kitty?
-		_mint(RESTAURANT_ADDESS, NULL_ORDER, msg.value, "");
+		_mint(restaurantAddess, NULL_ORDER, msg.value, "");
 	}
 
 	// Deposit the rewards for order id <orderId> 
@@ -46,16 +47,16 @@ abstract contract RestaurantEscrow is ERC1155 {
 		nOrders += 1;
 
 		console.log("nOrders:", nOrders);
-		_mint(RESTAURANT_ADDESS, orderId, value, "");
+		_mint(restaurantAddess, orderId, value, "");
 		console.log("donee .. balance:", address(this).balance);
 	}
 
 	// Withdraw the rewards for order id <orderId>
 	function withdraw(uint256 orderId, address payable to, uint256 value)
-		public onlySwiggs {
+		public onlyOwner {
 
 		// Reward value in escrow kitty should match requested withdrawal
-		uint256 _rewardBalance = balanceOf(RESTAURANT_ADDESS, orderId);
+		uint256 _rewardBalance = balanceOf(restaurantAddess, orderId);
 		console.log("_rewardBalance:", _rewardBalance);
 		console.log("value:", value);
 
@@ -64,7 +65,7 @@ abstract contract RestaurantEscrow is ERC1155 {
 			"RestaurantEscrow#withdraw: value > reward balance for order");
 
 		// Burn order
-		_burn(RESTAURANT_ADDESS, orderId, value);
+		_burn(restaurantAddess, orderId, value);
 
 		// Check withdrawal is not to self
 		require(to != msg.sender, "RestaurantEscrow#withdraw: Cannot withdraw to sender");
@@ -77,28 +78,28 @@ abstract contract RestaurantEscrow is ERC1155 {
 	}
 
 	// Set approval for operations
-	function grantPermission() public onlySwiggs {
+	function grantPermission() public onlyOwner {
 
 		// Set Swiggs contract approval to operate on
 		// restaurant owner's reward tokens
-		setApprovalForAll(SWIGGS_ADDRESS, true);
+		setApprovalForAll(owner, true);
 	}
 
 	// Set approval for operations
-	function revokePermission() public onlySwiggs {
+	function revokePermission() public onlyOwner {
 
 		// Revoke Swiggs contract approval to operate on
 		// restaurant owner's reward tokens
-		setApprovalForAll(SWIGGS_ADDRESS, false);
+		setApprovalForAll(owner, false);
 	}
 
-    modifier onlyRestaurantOwner {
-        if (msg.sender != RESTAURANT_ADDESS) revert();
+    modifier onlyOwner {
+        if (msg.sender != owner) revert("NOT OWNER");
         _;
     }
 
-    modifier onlySwiggs {
-        if (msg.sender != SWIGGS_ADDRESS) revert();
+    modifier onlyRestaurantOwner {
+        if (msg.sender != restaurantAddess) revert();
         _;
-    }    
+    }
 } 

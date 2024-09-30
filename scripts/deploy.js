@@ -1,5 +1,7 @@
 const hre = require("hardhat");
 const EntryPoint = require("./entryPoint.js");
+const UserOp = require("../src/userOp.js");
+const RESTAURANT = require("../src/RestaurantABI.js");
 
 // Interface to the Swiggs network
 class SwiggsNetwork {
@@ -44,11 +46,13 @@ SwiggsNetwork.prototype.deploy = async function () {
 	// Deploys AA EntryPoint contract
 	this.EntryPoint = await hre.ethers.getContractFactory(
 							EntryPoint.ABI, EntryPoint.BYTECODE);
+	const iface = this.EntryPoint.interface;
+
 	this.sampleEntryPoint = await this.EntryPoint.deploy();
 	await this.sampleEntryPoint.waitForDeployment();
 	this.sampleEntryPointAddress = await this.sampleEntryPoint.getAddress(); 
 	console.log(`AA EntryPoint deployed to ${this.sampleEntryPointAddress}`);
-
+	
 	// Deploys swiggs paymaster contract
 	this.Paymaster = await hre.ethers.getContractFactory('SwiggsPaymaster');
 	this.samplePaymaster = await this.Paymaster.deploy(
