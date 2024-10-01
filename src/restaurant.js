@@ -23,9 +23,10 @@ class SwiggsNetwork {
 	constructor(){
 		this.sampleRestaurant = null;
 		this.sampleRestaurantAddress = null;
+		this.sampleSwiggsAddress = "0x5fbdb2315678afecb367f032d93f642f64180aa3";
 		this.owner = null;
+		this.admin = null;
 		this.info = new RestaurantInfo();
-		this.sampleSwiggsAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3";		
 	}
 }
 
@@ -33,12 +34,13 @@ class SwiggsNetwork {
 SwiggsNetwork.prototype.connect = async function (restaurantId) {
 
  	// Use first signer as owner
- 	let _owner = await hre.ethers.getSigners();
- 	this.owner = _owner[2];
+ 	let _signers = await hre.ethers.getSigners();
+ 	this.admin = _signers[1];
+ 	this.owner = _signers[2];
  	console.log("Owner's address:", this.owner.address);
 
 	// Connect to restaurant contract
-	const _from = this.sampleSwiggsAddress;
+	const _from = this.admin.address;
 	const _salt = hre.ethers.solidityPackedKeccak256(["uint256"], [restaurantId]);
 	const AbiCoder = new hre.ethers.AbiCoder();
 	let _o = await AbiCoder.encode(["address"], [_from]);
@@ -49,7 +51,7 @@ SwiggsNetwork.prototype.connect = async function (restaurantId) {
 	const _initCode2 = await hre.ethers.keccak256(_initCode);
 
 	const _restaurantAddress = await hre.ethers.getCreate2Address(
-		_from, _salt, _initCode2);
+		this.sampleSwiggsAddress, _salt, _initCode2);
 	console.log("_restaurantAddress:", _restaurantAddress);	
 
 	this.sampleRestaurant = await hre.ethers.getContractAt(
@@ -89,10 +91,10 @@ SwiggsNetwork.prototype.getRestaurantInfo = async function () {
 SwiggsNetwork.prototype.registerOwner = async function (info) {
 
 	// Connect to restaurant contract
-	const _from = this.sampleSwiggsAddress;
-	console.log("_from:", _from);
+	const _from = this.admin.address;
 	const _salt = hre.ethers.solidityPackedKeccak256(["uint256", "address"],
 						 [info.id, _from]);
+
 	const AbiCoder = new hre.ethers.AbiCoder();
 	let _o = await AbiCoder.encode(["address"], [_from]);
 	let _p = await AbiCoder.encode(["address"], [this.sampleRestaurantAddress]);
@@ -103,11 +105,11 @@ SwiggsNetwork.prototype.registerOwner = async function (info) {
 	const _initCode2 = await hre.ethers.keccak256(_initCode);
 
 	const _restaurantEscrowAddress = await hre.ethers.getCreate2Address(
-		_from, _salt, _initCode2);
+		this.sampleSwiggsAddress, _salt, _initCode2);
 	console.log("Escrow A/C Is address:", hre.ethers.isAddress(_restaurantEscrowAddress));
 	console.log("restaurantEscrowAddress:", _restaurantEscrowAddress);	
 
-	let value = hre.ethers.parseEther('1000', 'gwei');
+	let value = hre.ethers.parseEther('100', 'gwei');
 
 	//this.info = new RestaurantInfo(ID, UUID, FSSAI, URL, escrowAddress);
 	this.info.id = info.id;
@@ -117,10 +119,24 @@ SwiggsNetwork.prototype.registerOwner = async function (info) {
 	this.info.ownerAddress = info.ownerAddress;
 	this.info.escrowAddress = _restaurantEscrowAddress;
 
-	await this.sampleRestaurant.connect(this.sampleSwiggsAddress).registerOwner(this.info.id, this.info.uuid,
-							this.info.fssai, this.info.url,
+	await this.sampleRestaurant.connect(this.admin).registerOwner(this.info.id, this.info.uuid,
+							this.info.fssai, this.info.url, this.info.ownerAddress,
 							this.info.escrowAddress, {value: value});
 	console.log("Registered Restaurant");
+}
+
+SwiggsNetwork.prototype.fundRewards = async function (info, funds) {
+
+	const tx = {
+		to: info.ownerAddress,
+		value: hre.ethers.parseEther(funds, 'eth')
+	}
+
+	console.log(`Funding Restaurant Account with ${tx.value} eth`);
+
+	await this.owner.sendTransaction(tx);
+	console.log("Registered Restaurant");
+
 }
 
 var swiggsnetwork = new SwiggsNetwork();
@@ -140,5 +156,14 @@ var swiggsnetwork = new SwiggsNetwork();
 			process.exitCode = 1;
 		});
 
+	}, 1000);
+
+	setTimeout(async () => {
+
+		await swiggsnetwork.fundRewards(restInfo, '1').catch((error) => {
+			console.error(error);
+			process.exitCode = 1;
+		});	
 	}, 2000);
+
 })();

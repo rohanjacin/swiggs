@@ -10,11 +10,11 @@ import "hardhat/console.sol";
 // Restaurant Owner's context
 struct RestaurantInfo {
 	address owner; //owner's address
+	address payable escrowAddress; // Rewards escrow account address
 	uint256 uuid; //universal id
 	uint256 fssai; //license (10^14 ~ 2^46)
 	uint256 id; //relative id (10^6 ~ 2^20, location specific)
 	string url; // city/${city}/${name}-${locality}-${areaName}-rest${restaurantId} 
-	address payable escrowAddress; // Rewards escrow account address
 }
 
 // Main Contract
@@ -38,12 +38,14 @@ abstract contract Restaurant is ERC1155Holder {
 
 	}
 
-	// Fetches restuaurant information
+	// Fetches restaurant information
 	function getInfo() external view onlyOwner
-		returns(RestaurantInfo memory) {
+		returns(address, address payable, uint256, 
+				uint256,uint256, string memory) {
 
 		console.log("Getting restaurant id:", id);
-		return info;
+		return (info.owner, info.escrowAddress, info.id,
+				info.uuid, info.fssai, info.url);
 	}
 
 	// Register restaurant details (other than restaurant id)
@@ -69,10 +71,6 @@ abstract contract Restaurant is ERC1155Holder {
 		info.url = _url;
 		info.escrowAddress = _escrowAddress;
 		console.log("register Owner done.");
-
-		require(IRestaurantAccount(_restaurantOwner)
-				.linkRestaurant{value: msg.value}(_restaurantOwner),
-				"Could not link with restaurant account");
 
 		emit RestaurantOwnerRegistered(id, info.escrowAddress,
 			info.owner);
@@ -111,8 +109,10 @@ abstract contract Restaurant is ERC1155Holder {
 	function depositReward(uint256 orderId, uint256 value) 
 		external payable onlyOwner {
 
-		console.log("In depositReward..");
+		console.log("In depositReward..:", msg.value);
+		console.log("value:", value);
 
+		require(value == msg.value, "Value mismatch");
 		RestaurantEscrow escrow = RestaurantEscrow(info.escrowAddress);
 		
 		// TODO: Handle failure condition

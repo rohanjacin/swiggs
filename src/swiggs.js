@@ -57,12 +57,15 @@ SwiggsNetwork.prototype.deployRestaurantAA = async function (restaurantId) {
 
  	let _address = await hre.ethers.getSigners();
  	let _ownerAddress = _address[2];
+ 	let _admin = _address[1];
+
  	//let _oaddr = await _ownerAddress.getAddress();
  	console.log("_oaddr:", _ownerAddress.address);
 
 	// Deploys restaurant account
 	this.RestaurantAA = await hre.ethers.getContractFactory('RestaurantAccount');
 	this.sampleRestaurantAA = await this.RestaurantAA.deploy(
+								_admin.address,
 								_ownerAddress.address,
 								this.EntryPointAddress);
 	await this.sampleRestaurantAA.waitForDeployment();

@@ -42,7 +42,7 @@ SwiggsNetwork.prototype.connect = async function (_id) {
 
  	// Get Restaurant
 	this.sampleRestaurant = await hre.ethers.getContractAt(
-		'Restaurant', '0xB6303f71828383CF11f8cdE833aa10483ebfCc89');
+		'Restaurant', '0x86dF95508fBdE6045B6958E2DDd044aB05C7F664');
  	console.log("restaurant contract:", this.sampleRestaurant.target);
 
 	// Get EntryPoint
@@ -63,19 +63,19 @@ SwiggsNetwork.prototype.connect = async function (_id) {
 }
 
 // Connect to the Swiggs network (EntryPoint)
-SwiggsNetwork.prototype.registerOwner = async function () {
+SwiggsNetwork.prototype.depositReward = async function () {
 
 	const AbiCoder = new hre.ethers.AbiCoder();
 	const execSig = this.restaurantAccount.interface.getFunction('executeUserOp').selector;
+	let value = hre.ethers.parseEther('1', 'gwei');
 
-	const registerOwnerCall = AbiCoder.encode(['address', 'bytes'],
+	const depositRewardCall = AbiCoder.encode(['address', 'bytes'],
 		[ this.sampleRestaurant.target,
 		  this.sampleRestaurant.interface.encodeFunctionData(
-		  	"registerOwner", [ID, UUID, FSSAI, URL, 
-		  	"0x0FC9bD43Ea8dcA688FCBd84250ffD56F754984a2"])
+		  	"depositReward", ["0x1", value])
 		]);
 
-	const cdata = hre.ethers.concat([execSig, registerOwnerCall]);
+	const cdata = hre.ethers.concat([execSig, depositRewardCall]);
 
     const accounts = hre.config.networks.hardhat.accounts;
     console.log("accounts:", accounts);
@@ -102,7 +102,7 @@ var swiggsnetwork = new SwiggsNetwork();
 		process.exitCode = 1;
 	});
 
-	await swiggsnetwork.registerOwner(ID).catch((error) => {
+	await swiggsnetwork.depositReward(ID).catch((error) => {
 		console.error(error);
 		process.exitCode = 1;
 	});

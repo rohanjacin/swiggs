@@ -34,14 +34,16 @@ class SwiggsNetwork {
 // Connects to the Swiggs contract
 SwiggsNetwork.prototype.deploy = async function () {
 
+ 	let _signers = await hre.ethers.getSigners();
+ 	this.swiggsOwner = _signers[1];
+
 	// Deploys swiggs contract
 	this.Swiggs = await hre.ethers.getContractFactory('Swiggs');
-	this.sampleSwiggs = await this.Swiggs.deploy('sampleSwiggs');
+	this.sampleSwiggs = await this.Swiggs.deploy(
+						'sampleSwiggs', this.swiggsOwner.address);
 	await this.sampleSwiggs.waitForDeployment();
 	this.sampleSwiggsAddress = await this.sampleSwiggs.getAddress(); 
 	console.log(`Swiggs deployed to ${this.sampleSwiggsAddress}`);
- 	let _signers = await hre.ethers.getSigners();
- 	this.swiggsOwner = _signers[1];
 
 	// Deploys AA EntryPoint contract
 	this.EntryPoint = await hre.ethers.getContractFactory(

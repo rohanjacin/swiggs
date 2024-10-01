@@ -10,10 +10,12 @@ import "./restaurantEscrow.sol";
 contract Swiggs {
 
 	string name;
+	address owner;
 
-	constructor (string memory _name) {
+	constructor (string memory _name, address _owner) {
 		name = _name;
-		//console.log("Swiggs created.. ", name);
+		owner = _owner;
+		console.log("Swiggs created: ", owner);
 	}
 
 	// Restaurant registered event
@@ -46,9 +48,10 @@ contract Swiggs {
 		//bytes memory initCode = type(Restaurant).creationCode;
 
 		_salt = keccak256(abi.encodePacked(restaurantId));
+		console.log("dsalt:", uint256(_salt));
 
 		bytes memory byteCode = abi.encodePacked(restaurantInitCode,
-			uint256(restaurantId), abi.encode(address(this)));
+			uint256(restaurantId), abi.encode(address(owner)));
 
 		//console.log("creating restaurant contract..:", restaurantId);
 
@@ -79,11 +82,11 @@ contract Swiggs {
 		//bytes memory initCode = type(RestaurantEscrow).creationCode;
 
 		// TODO: Audit the salt hash for leakage
-		_salt = keccak256(abi.encodePacked(restaurantId, address(this)));
-		//console.log("_salt:", uint256(_salt));
+		_salt = keccak256(abi.encodePacked(restaurantId, address(owner)));
+		console.log("esalt:", uint256(_salt));
 
 		bytes memory byteCode = abi.encodePacked(escrowInitCode,
-			abi.encode(address(restaurantDeployedAddress), address(this)));
+			abi.encode(address(restaurantDeployedAddress), address(owner)));
 		//console.log("creating restaurant escrow contract..:", restaurantId);
 
 		// Deploy restaurant's contract
@@ -116,10 +119,11 @@ contract Swiggs {
 			}
 		}
 
-		RestaurantInfo memory info = restaurant.getInfo();
+		(, address payable escrowAddress, , , , ) = restaurant.getInfo();
+		console.log("escrowAddress:", escrowAddress);
 
 		// Fetch restaurant escrow contract and check if it exists
-		RestaurantEscrow escrow = RestaurantEscrow(info.escrowAddress);
+		RestaurantEscrow escrow = RestaurantEscrow(escrowAddress);
 		assembly {
 			if iszero(extcodesize(escrow)) {
 				revert(0, 0)
