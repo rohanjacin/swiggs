@@ -8,7 +8,7 @@ class UserOperation {
 	  this.nonce = "0x0";//nonce; //BigNumber
 	  this.initCode = "" + initCode; //bytes
 	  //console.log("initCode:", this.initCode);
-	  this.callData = "" + callData; //bytes
+	  this.callData = callData; //bytes
 	  this.paymaster = paymaster; //string
 	  this.signature = 0; //bytes
 	  this.callGasLimit = 100000;

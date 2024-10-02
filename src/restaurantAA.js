@@ -42,7 +42,7 @@ SwiggsNetwork.prototype.connect = async function (_id) {
 
  	// Get Restaurant
 	this.sampleRestaurant = await hre.ethers.getContractAt(
-		'Restaurant', '0x86dF95508fBdE6045B6958E2DDd044aB05C7F664');
+		'Restaurant', '0xCb6B10517264f45211b147c76C9E604DB096a544');
  	console.log("restaurant contract:", this.sampleRestaurant.target);
 
 	// Get EntryPoint
@@ -67,15 +67,19 @@ SwiggsNetwork.prototype.depositReward = async function () {
 
 	const AbiCoder = new hre.ethers.AbiCoder();
 	const execSig = this.restaurantAccount.interface.getFunction('executeUserOp').selector;
-	let value = hre.ethers.parseEther('1', 'gwei');
+	let value = hre.ethers.parseEther('10', 'gwei');
 
 	const depositRewardCall = AbiCoder.encode(['address', 'bytes'],
 		[ this.sampleRestaurant.target,
 		  this.sampleRestaurant.interface.encodeFunctionData(
 		  	"depositReward", ["0x1", value])
 		]);
+	console.log("encodeFunctionData:", this.sampleRestaurant.interface.encodeFunctionData(
+		  	"depositReward", ["0x1", value]));
 
+	console.log("depositRewardCall:", depositRewardCall);
 	const cdata = hre.ethers.concat([execSig, depositRewardCall]);
+	console.log("cdata:", cdata);
 
     const accounts = hre.config.networks.hardhat.accounts;
     console.log("accounts:", accounts);

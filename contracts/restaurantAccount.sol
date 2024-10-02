@@ -21,15 +21,14 @@ contract RestaurantAccount is BaseAccount, IAccountExecute {
 
 	constructor (address _admin, address _owner, IEntryPoint _entryPointAA) {
 
-		console.log("\nIn constructor of RestaurantAccount");
-		console.log("_owner:", _owner);
-		console.log("_admin:", _admin);
+		console.log("RestaurantAccount");
+		console.log("owner:", _owner);
+		console.log("admin:", _admin);
 
 		owner = _owner; // Contract _owner
 		admin = _admin; // admin
 		entryPointAA = _entryPointAA; // Entry point contract for AA
 		restaurantAddress = address(0); 
-		console.log("Restaurant owner address:", owner);
 	}
 
     event Executed(PackedUserOperation userOp, bytes innerCallRet);
@@ -40,7 +39,6 @@ contract RestaurantAccount is BaseAccount, IAccountExecute {
 		// TODO: do we need this? What if the owner wants
 		// to topup the reward kitty?
 		console.log("Fallback:", msg.value);
-		console.log("New balance:", address(this).balance);
 	}
 
     // Inherited from BaseAccount override here
@@ -74,7 +72,7 @@ contract RestaurantAccount is BaseAccount, IAccountExecute {
     ) external override returns (uint256 validationData) {
 
     	missingAccountFunds; // unused
-    	console.log("\n\nvalidateUserOp");
+
     	// validate the signature
         validationData = _validateSignature(userOp, userOpHash);
         _validateNonce(userOp.nonce);
@@ -88,9 +86,6 @@ contract RestaurantAccount is BaseAccount, IAccountExecute {
         // Validate restaurant contract is linked
         address _target = abi.decode(userOp.callData[4:36], (address));
         console.log("_target:", _target);
-        if (restaurantAddress == address(0)) {
-        	require(_linkToRestaurant(_target), "Restaurant not linked");
-        } 
     }
 
     // Check if userop outer call is executeUserOp (internal function)
@@ -105,77 +100,77 @@ contract RestaurantAccount is BaseAccount, IAccountExecute {
         return ret;
     }
 
-    // Check if restaurant contract has us as owner
-    function _linkToRestaurant(address __target) internal returns (bool) {
+    // Link to restaurant contract
+    function linkToRestaurant(address _restaurantAddress)
+    	external onlyAdmin {
         
-        console.log("in _isLinked");
-        bool ret = false;
+        require(_restaurantAddress != address(0), "Not a valid restaurant address");
 
-        if (__target != address(0)) {
-			assembly {
-				if iszero(extcodesize(__target)) {
-					revert(0, 0)
-				}
+        // Check if restaurant contract exists
+		assembly {
+			if iszero(extcodesize(_restaurantAddress)) {
+				revert(0, 0)
 			}
+		}
 
-			console.log("In middle");
-			(address _owner, , , , , ) = IRestaurant(__target).getInfo();
-			console.log("_owner:", _owner);
-			console.log("address(this):", address(this));
+		// Fetch restaurant info to verify owner's account point to us
+		// TODO: Check for security vunerabilities, use staticall ? 
+		(address _owner, , , , , ) = IRestaurant(_restaurantAddress).getInfo();
 
-			if(_owner == address(this)) {
-				ret = true;
-				restaurantAddress = __target;
-			}
-        }
-
-        return ret;	
+		require(_owner == address(this), "Restaurant owner's address not ours");
+		
+		restaurantAddress = _restaurantAddress;
     }
 
     // Proxy for restaurant#functions
     function executeUserOp(PackedUserOperation calldata userOp, bytes32 /*userOpHash*/)
-    	external onlyOwnerOrEntryPoint() {
+    	external onlyOwnerOrEntryPoint() onlyIfLinked() {
 
         // read from the userOp.callData, but skip the "magic" prefix (executeUserOp sig),
         // which caused it to call this method.
         bytes calldata innerCall = userOp.callData[4 :];
         bytes memory innerCallRet;
-/*
-		if ((this.interface.executeUserOp.selector == _selector) ||
-			(IRestaurant.registerOwner.selector == _selector) ||
-			(IRestaurant.startOperations.selector == _selector) ||
-			(IRestaurant.stopOperations.selector == _selector) ||
-			(IRestaurant.depositReward.selector == _selector) ||
-			(IRestaurant.withdrawReward.selector == _selector)) {
-			ret = true;
-		}
-*/
-        console.log("in executeUserOp");
+
         if (innerCall.length > 0) {
             bool success;
-            (address target, bytes memory data) = abi.decode(innerCall, (address, bytes));
-            console.log("target:", target);
-            console.log("restaurantAddress:", restaurantAddress);
+           
+            (address target, bytes memory data) = abi.decode(innerCall,
+            										(address, bytes));
+            
+            require(target == restaurantAddress, "Userop target invalid");
+            
+            bytes4 sel;
 
-            (bytes4 _sig, uint256 _orderId, uint256 _value) = abi.decode(data, (bytes4, uint256, uint256));
-				console.log("_orderId:", _orderId);
-				console.log("_value:", _value);
+            assembly {
+            	// loads 32 bytes of inner call selector into sel
+            	// skips the first 32 bytes of offset data
+            	sel := mload(add(data, 32))
+            }
 
-            require(target == restaurantAddress, "inner call failed");
+            if(sel == IRestaurant.depositReward.selector) {
+            	uint256 orderId;
+            	uint256 value;
 
-            console.log("before this.balance:", address(this).balance);
-		
-/*			if(_sig == IRestaurant.depositReward.selector) {
-				console.log("deposit function parsing");
-            	(uint256 _orderId, uint256 _value) = abi.decode(innerCall[36:], (uint256, uint256));
-	            (success, innerCallRet) = target.call{value: _value}(data);
-			}
+            	//depositReward(uint256, uint256)
+            	assembly {
+            		// loads the 32 bytes of the inner call function 1st argument
+            		// skips the first 32 bytes of offset data
+            		// plus the 4 byte selector data
+            		orderId := mload(add(data, 36))
+
+            		// loads the 32 bytes of the inner call function 2nd argument
+            		// skips the first 32 bytes of offset data
+            		// plus the 4 byte selector data
+            		value := mload(add(data, 68))
+            	}
+
+            	(success, innerCallRet) = target.call{value: value}(data);
+            }
 			else {
-*/	            (success, innerCallRet) = target.call(data);				
-			//}
+	            (success, innerCallRet) = target.call(data);				
+			}		
 
-            console.log("after this.balance:", address(this).balance);
-            require(success, "inner call failed");
+            require(success, "Userop target execution not successfull");
         }
 
         emit Executed(userOp, innerCallRet);
@@ -187,12 +182,18 @@ contract RestaurantAccount is BaseAccount, IAccountExecute {
     }    
 
     modifier onlyAdmin {
-        if (msg.sender != owner) revert("Not Admin");
+        if (msg.sender != admin) revert("Not Admin");
         _;
     }
 
     modifier onlyOwnerOrEntryPoint {
-        if ((msg.sender != owner) && (msg.sender != address(entryPointAA))) revert();
+        if ((msg.sender != owner) && 
+        	(msg.sender != address(entryPointAA))) revert();
         _;
     }
+
+    modifier onlyIfLinked {
+        if (restaurantAddress == address(0)) revert("Restaurant not linked");
+        _;
+    }    
 }

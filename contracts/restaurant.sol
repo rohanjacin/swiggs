@@ -109,7 +109,8 @@ abstract contract Restaurant is ERC1155Holder {
 	function depositReward(uint256 orderId, uint256 value) 
 		external payable onlyOwner {
 
-		console.log("In depositReward..:", msg.value);
+		console.log("In depositReward..:", msg.sender);
+		console.log("msg.value:", msg.value);
 		console.log("value:", value);
 
 		require(value == msg.value, "Value mismatch");

@@ -24,6 +24,7 @@ class SwiggsNetwork {
 		this.sampleRestaurant = null;
 		this.sampleRestaurantAddress = null;
 		this.sampleSwiggsAddress = "0x5fbdb2315678afecb367f032d93f642f64180aa3";
+		this.restaurantAccount = null;
 		this.owner = null;
 		this.admin = null;
 		this.info = new RestaurantInfo();
@@ -139,6 +140,18 @@ SwiggsNetwork.prototype.fundRewards = async function (info, funds) {
 
 }
 
+SwiggsNetwork.prototype.linkRestaurantAccount = async function () {
+ 	// Connect to Restaurant Account
+ 	this.restaurantAccount = await hre.ethers.getContractAt(
+ 		'RestaurantAccount', '0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9');
+ 	console.log(`Attached to SwiggsNetwork via Restaurant Account`);
+ 	console.log("restaurantAccount:", this.restaurantAccount.target);
+
+	await this.restaurantAccount.connect(this.admin).linkToRestaurant(
+										this.sampleRestaurantAddress);
+	console.log("Linked Restaurant Account");
+}
+
 var swiggsnetwork = new SwiggsNetwork();
 (async () => {
 	await swiggsnetwork.connect(ID).catch((error) => {
@@ -159,11 +172,21 @@ var swiggsnetwork = new SwiggsNetwork();
 	}, 1000);
 
 	setTimeout(async () => {
+		console.log("Linking restautant account..");
 
-		await swiggsnetwork.fundRewards(restInfo, '1').catch((error) => {
+		await swiggsnetwork.linkRestaurantAccount().catch((error) => {
+			console.error(error);
+			process.exitCode = 1;
+		});
+
+	}, 2000);
+
+	setTimeout(async () => {
+
+		await swiggsnetwork.fundRewards(restInfo, '100').catch((error) => {
 			console.error(error);
 			process.exitCode = 1;
 		});	
-	}, 2000);
+	}, 3000);
 
 })();
