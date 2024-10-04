@@ -13,8 +13,8 @@ interface IRestaurant {
         uint256 _fssai, string memory _url, address _restaurantOwner,
         address payable _escrowAddress) external payable;
 
-    // Start operations by enabling rewards
-    function startOperations() external;
+    // Start operations by creating a session key and enabling rewards
+    function startOperations(address sessionKey) external;
 
     // Stop or halt operations by disabling rewards
     function stopOperations() external;

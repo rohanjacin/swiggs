@@ -5,6 +5,7 @@ pragma solidity ^0.8.20;
 import "hardhat/console.sol";
 import "./restaurant.sol";
 import "./restaurantEscrow.sol";
+import "./IRestaurantAccount.sol";
 
 // Main Contract
 contract Swiggs {
@@ -104,6 +105,32 @@ contract Swiggs {
 		}
 
 		return addr;
+	}
+
+	// Validate restuarant account and enable operations
+	function enableOperations(uint256 restaurantId, 
+		address restaurantOwner, address sessionKey)
+		external returns (bool success) {
+		restaurantId; restaurantOwner; sessionKey;
+
+		console.log("Swiggs:msg.sender:", msg.sender);
+		console.log("restaurantOwner:", restaurantOwner);
+
+		// Validate restaurant contract
+		// TODO: more validation
+		require(restaurantOwner != address(0), "Invalid restaurant address");
+
+		assembly {
+			if iszero(extcodesize(restaurantOwner)) {
+				revert(0, 0)
+			}
+		}
+
+		// Set the session key in the restaurant account contract
+		require(IRestaurantAccount(restaurantOwner).addSessionKey(sessionKey),
+				"Couldnt set the session key");
+
+		return true;
 	}
 
 	// Validate reward against an order

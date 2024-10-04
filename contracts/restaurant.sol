@@ -5,6 +5,7 @@ pragma solidity ^0.8.20;
 import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 import "./restaurantEscrow.sol";
 import "./IRestaurantAccount.sol";
+import "./ISwiggs.sol";
 import "hardhat/console.sol";
 
 // Restaurant Owner's context
@@ -22,7 +23,10 @@ abstract contract Restaurant is ERC1155Holder {
 
 	uint256 public id;
 	address public owner;
+	address internal ownerSessionKey; 
 	RestaurantInfo info;
+	address constant internal SWIGGS_ADDRESS = address(
+		0x5FbDB2315678afecb367f032d93F642f64180aa3);
 
 	// Restaurant Owner registered event
 	event RestaurantOwnerRegistered(uint256 indexed id,
@@ -77,9 +81,26 @@ abstract contract Restaurant is ERC1155Holder {
 	}
 
 	// Start operations by enabling rewards
-	function startOperations() external
-		onlyAdmin onlyOwner {
-		RestaurantEscrow escrow = RestaurantEscrow(info.escrowAddress);
+	function startOperations(address sessionKey) external
+		onlyAdminOrOwner {
+
+		console.log("startOperations:Key:", sessionKey);
+		
+		// Store new session key
+		require(sessionKey != address(0));
+		
+		// Enable operations in swiggs main contract
+		ISwiggs(SWIGGS_ADDRESS).enableOperations(info.id,
+			info.owner, sessionKey);
+
+		console.log("enabled");
+		//ownerSessionKey = sessionKey;
+
+		// Check if restaurant owner/account is 
+		//require(success, "Could not create a session key");
+
+		// Grant permission to escrow account
+/*		RestaurantEscrow escrow = RestaurantEscrow(info.escrowAddress);
 
 		assembly {
 			if iszero(extcodesize(escrow)) {
@@ -87,12 +108,12 @@ abstract contract Restaurant is ERC1155Holder {
 			}
 		}
 
-		escrow.grantPermission();
+		escrow.grantPermission();*/
 	}
 
 	// Stop or halt operations by disabling rewards
 	function stopOperations() external
-		onlyAdmin onlyOwner {
+		onlyAdminOrOwner {
 		RestaurantEscrow escrow = RestaurantEscrow(info.escrowAddress);
 
 		assembly {
@@ -144,4 +165,8 @@ abstract contract Restaurant is ERC1155Holder {
         _;
     }
 
+    modifier onlyAdminOrOwner {
+        if ((msg.sender != owner) && (msg.sender != info.owner)) revert("Not Admin or Owner");
+        _;
+    }
 }

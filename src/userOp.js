@@ -5,7 +5,7 @@ class UserOperation {
 
 	constructor(sender, nonce, initCode, callData, paymaster) {
 	  this.sender = sender; //string
-	  this.nonce = "0x0";//nonce; //BigNumber
+	  this.nonce = nonce; //BigNumber
 	  this.initCode = "" + initCode; //bytes
 	  //console.log("initCode:", this.initCode);
 	  this.callData = callData; //bytes

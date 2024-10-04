@@ -18,6 +18,10 @@ contract RestaurantAccount is BaseAccount, IAccountExecute {
 	address public admin;
 	address internal restaurantAddress;
 	IEntryPoint private immutable entryPointAA;
+    address constant internal SWIGGS_ADDRESS = address(
+        0x5FbDB2315678afecb367f032d93F642f64180aa3);    
+
+    address internal ownerSessionKey;
 
 	constructor (address _admin, address _owner, IEntryPoint _entryPointAA) {
 
@@ -56,9 +60,13 @@ contract RestaurantAccount is BaseAccount, IAccountExecute {
 		// Convert useropHash to EIP-191 eth signed hash format
 		bytes32 hash = MessageHashUtils.toEthSignedMessageHash(userOpHash);
 
-		// Validate signature in userOp
-		if(owner != ECDSA.recover(hash, userOp.signature))	
+		// Validate signature in userOp, first with owner's wallet
+        // second with owner's session key
+        address key = ECDSA.recover(hash, userOp.signature);
+        console.log("KEY:", key);
+		if((owner != key) && (ownerSessionKey != key)) {
 			return SIG_VALIDATION_FAILED;
+        }	
 		// TODO: Time range validation?	
 		return SIG_VALIDATION_SUCCESS;	
 
@@ -113,6 +121,8 @@ contract RestaurantAccount is BaseAccount, IAccountExecute {
 			}
 		}
 
+        // TODO: Check if restaurant contract hash has not changed
+
 		// Fetch restaurant info to verify owner's account point to us
 		// TODO: Check for security vunerabilities, use staticall ? 
 		(address _owner, , , , , ) = IRestaurant(_restaurantAddress).getInfo();
@@ -120,6 +130,17 @@ contract RestaurantAccount is BaseAccount, IAccountExecute {
 		require(_owner == address(this), "Restaurant owner's address not ours");
 		
 		restaurantAddress = _restaurantAddress;
+    }
+
+    // Session key added by Swiggs on operations start
+    function addSessionKey(address sessionKey) external
+        onlySwiggs returns (bool) {
+
+        console.log("Adding sessionkey:", sessionKey);
+        require(sessionKey != address(0), "Session key invalid");
+        ownerSessionKey = sessionKey;
+
+        return true;
     }
 
     // Proxy for restaurant#functions
@@ -195,5 +216,15 @@ contract RestaurantAccount is BaseAccount, IAccountExecute {
     modifier onlyIfLinked {
         if (restaurantAddress == address(0)) revert("Restaurant not linked");
         _;
-    }    
+    }
+
+    modifier onlyRestaurant () {
+        if (msg.sender != restaurantAddress) revert("Not restaurant");
+        _;
+    }
+
+    modifier onlySwiggs {
+        if (msg.sender != SWIGGS_ADDRESS) revert("Not Swiggs");
+        _;
+    }
 }
