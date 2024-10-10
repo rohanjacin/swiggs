@@ -31,7 +31,8 @@ contract Auth is NonceManager {
 	}
 
 	// Validate account request event
-	event validateAccountRequest(uint256 id);
+	event validateAccountRequest(uint256 id, address restaurant,
+								 address restaurantAccount);
 
 	// Account already exists
 	event accountAlreadyExists(uint256 id);
@@ -64,7 +65,7 @@ contract Auth is NonceManager {
 		}
 
 		// TODO: static call?
-		address restaurant = IRestaurantAccount(msg.sender).getRestaurant();
+		address restaurant = IRestaurantAccount(addr).getRestaurant();
 		require(restaurant != address(0), "Restaurant not linked");
 
 		// Origin hash
@@ -73,7 +74,7 @@ contract Auth is NonceManager {
 			abi.encodePacked(name, restaurant)));
 
 		// Check if id already exists
-		bool idExists = IRestaurantAccount(msg.sender).accountExists(id);
+		bool idExists = IRestaurantAccount(addr).accountExists(id);
 
 		if (idExists == true) {
 			// Send account already exists event
@@ -82,7 +83,7 @@ contract Auth is NonceManager {
 		}
 
 		// Request account validation
-		emit validateAccountRequest(id);
+		emit validateAccountRequest(id, restaurant, addr);
 	}
 
 	// Verify account creation 

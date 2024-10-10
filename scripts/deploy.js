@@ -12,6 +12,11 @@ class SwiggsNetwork {
 		this.sampleSwiggsAddress = null;
 		this.swiggsOwner = null;
 
+		// Swiggs contract objects
+		this.sampleAuth = null;
+		this.Auth = null;
+		this.sampleAuthAddress = null;
+
 		// Swiggs token objects
 		this.sampleToken = null;
 		this.Token = null;
@@ -44,6 +49,14 @@ SwiggsNetwork.prototype.deploy = async function () {
 	await this.sampleSwiggs.waitForDeployment();
 	this.sampleSwiggsAddress = await this.sampleSwiggs.getAddress(); 
 	console.log(`Swiggs deployed to ${this.sampleSwiggsAddress}`);
+
+	// Deploys auth contract
+	this.Auth = await hre.ethers.getContractFactory('Auth');
+	this.sampleAuth = await this.Auth.deploy(
+						'sampleAuth', this.swiggsOwner.address);
+	await this.sampleAuth.waitForDeployment();
+	this.sampleAuthAddress = await this.sampleAuth.getAddress(); 
+	console.log(`Auth deployed to ${this.sampleAuthAddress}`);
 
 	// Deploys AA EntryPoint contract
 	this.EntryPoint = await hre.ethers.getContractFactory(

@@ -43,7 +43,7 @@ abstract contract Restaurant is ERC1155Holder {
 	}
 
 	// Fetches restaurant information
-	function getInfo() external view onlyOwner
+	function getInfo() external view onlyAdminOrOwner
 		returns(address, address payable, uint256, 
 				uint256,uint256, string memory) {
 
