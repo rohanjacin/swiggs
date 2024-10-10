@@ -177,13 +177,6 @@ SwiggsNetwork.prototype.depositRewardWithSessionKey = async function () {
 	const cdata = hre.ethers.concat([execSig, despositRewardsCall]);
 	console.log("cdata:", cdata);
 
-    const accounts = hre.config.networks.hardhat.accounts;
-    console.log("accounts:", accounts);
-    console.log("path:", accounts.path + "/2");
-    const wallet = ethers.HDNodeWallet.fromPhrase(accounts.mnemonic, "", accounts.path + `/2`);    
-    console.log("wallet.privateKey:", wallet.privateKey);
-    console.log("address:", wallet.address);
-
 	this.nonce = await this.restaurantAccount.connect(this.owner).getNonce();
 	console.log("this.nonce:", this.nonce);
 	this.nonce++;

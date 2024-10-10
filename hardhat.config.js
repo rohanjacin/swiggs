@@ -20,7 +20,7 @@ module.exports = {
     }],
 
     path: {
-      sources: ["./contracts", "./node_modules/@account-abstraction/contracts/core/EntryPoint.sol"]
+      sources: ["./contracts"]
     }
   },
 

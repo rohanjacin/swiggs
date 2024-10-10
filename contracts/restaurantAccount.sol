@@ -7,9 +7,16 @@ import "@account-abstraction/contracts/interfaces/IAccountExecute.sol";
 import "@account-abstraction/contracts/core/Helpers.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import "@openzeppelin/contracts/utils/Base64.sol";
 import "./restaurant.sol";
 import "./IRestaurant.sol";
 import "hardhat/console.sol";
+
+struct AccountInfo {
+    uint256 x; // Public key (x component)
+    uint256 y; // Public key (y component)
+    uint256 key; // Session key
+}
 
 // Main Contract
 contract RestaurantAccount is BaseAccount, IAccountExecute {
@@ -20,7 +27,10 @@ contract RestaurantAccount is BaseAccount, IAccountExecute {
 	IEntryPoint private immutable entryPointAA;
     address constant internal SWIGGS_ADDRESS = address(
         0x5FbDB2315678afecb367f032d93F642f64180aa3);    
+    address constant internal AUTH_ADDRESS = address(
+        0x5FbDB2315678afecb367f032d93F642f64180aa3);    
 
+    mapping (uint256 => AccountInfo) accounts;
     address internal ownerSessionKey;
 
 	constructor (address _admin, address _owner, IEntryPoint _entryPointAA) {
@@ -108,6 +118,15 @@ contract RestaurantAccount is BaseAccount, IAccountExecute {
         return ret;
     }
 
+    // Fetches restaurant address if linked
+    function getRestaurant() external view onlyAuth returns(address restaurant) {
+        
+        if(restaurantAddress != address(0))
+            restaurant = restaurantAddress;
+        else
+            restaurant = address(0);
+    }
+
     // Link to restaurant contract
     function linkToRestaurant(address _restaurantAddress)
     	external onlyAdmin {
@@ -132,13 +151,47 @@ contract RestaurantAccount is BaseAccount, IAccountExecute {
 		restaurantAddress = _restaurantAddress;
     }
 
-    // Session key added by Swiggs on operations start
-    function addSessionKey(address sessionKey) external
-        onlySwiggs returns (bool) {
+    // Register staff account with StatusIM chat key
+    function registerAccount(bytes memory chatkey) 
+        external payable onlyOwner {
 
-        console.log("Adding sessionkey:", sessionKey);
-        require(sessionKey != address(0), "Session key invalid");
-        ownerSessionKey = sessionKey;
+/*        // Credential ID is status chat key
+        string memory id = Base64.encode(chatkey);
+        // Challenge is hash of chatkey 
+        bytes32 challenge = keccak256(abi.encodePacked(
+                                        info.owner, id));*/
+        //createAccount()
+    }    
+
+    // Add validated account 
+    function addAccount(uint256 id, uint256 x, uint256 y) 
+        external onlyAuth returns (bool) {
+
+        accounts[id].x = x;
+        accounts[id].y = y;
+
+        return true;
+    }
+
+    // Check if account is present 
+    function accountExists(uint256 id) 
+        external view onlyAuthOrAdminOrOwner returns (bool) {
+
+        if ((accounts[id].x != 0) &&
+           (accounts[id].y != 0)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    // Remove account 
+    function removeAccount(uint256 id) 
+        external onlyOwner returns (bool) {
+
+        // TODO: Very important: Delete slot in mapping
+        accounts[id].x = 0;
+        accounts[id].y = 0;
 
         return true;
     }
@@ -204,6 +257,18 @@ contract RestaurantAccount is BaseAccount, IAccountExecute {
 
     modifier onlyAdmin {
         if (msg.sender != admin) revert("Not Admin");
+        _;
+    }
+
+    modifier onlyAuth {
+        if (msg.sender != AUTH_ADDRESS) revert("Not Auth contract");
+        _;
+    }
+
+    modifier onlyAuthOrAdminOrOwner {
+        if ((msg.sender != AUTH_ADDRESS) &&
+            (msg.sender != admin) &&
+            (msg.sender != owner)) revert("Not Auth contract");
         _;
     }
 

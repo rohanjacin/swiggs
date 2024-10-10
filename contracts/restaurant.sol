@@ -10,11 +10,11 @@ import "hardhat/console.sol";
 
 // Restaurant Owner's context
 struct RestaurantInfo {
-	address owner; //owner's address
+	address owner; // owner's address
 	address payable escrowAddress; // Rewards escrow account address
-	uint256 uuid; //universal id
-	uint256 fssai; //license (10^14 ~ 2^46)
-	uint256 id; //relative id (10^6 ~ 2^20, location specific)
+	uint256 uuid; // universal id
+	uint256 fssai; // license (10^14 ~ 2^46)
+	uint256 id; // relative id (10^6 ~ 2^20, location specific)
 	string url; // city/${city}/${name}-${locality}-${areaName}-rest${restaurantId} 
 }
 
@@ -22,7 +22,7 @@ struct RestaurantInfo {
 abstract contract Restaurant is ERC1155Holder {
 
 	uint256 public id;
-	address public owner;
+	address public admin;
 	address internal ownerSessionKey; 
 	RestaurantInfo info;
 	address constant internal SWIGGS_ADDRESS = address(
@@ -32,12 +32,12 @@ abstract contract Restaurant is ERC1155Holder {
 	event RestaurantOwnerRegistered(uint256 indexed id,
 		address escrowAt, address indexed ownerAddress);
 
-	constructor (uint256 _id, address _owner) {
+	constructor (uint256 _id, address _admin) {
 
 		id = _id; // Restaurant id
-		owner = _owner; // Contract owner
+		admin = _admin; // Contract admin
 		console.log("Restaurant Init:", id);
-		console.log("Restaurant Owner:", owner);
+		console.log("Restaurant Admin:", admin);
 		console.log("Restaurant contract address:", address(this));
 
 	}
@@ -52,7 +52,7 @@ abstract contract Restaurant is ERC1155Holder {
 				info.uuid, info.fssai, info.url);
 	}
 
-	// Register restaurant details (other than restaurant id)
+	// Register restaurant owner and details (other than restaurant id)
 	function registerOwner(uint256 _id, uint256 _uuid,
 		uint256 _fssai, string memory _url,
 		address _restaurantOwner,
@@ -89,10 +89,10 @@ abstract contract Restaurant is ERC1155Holder {
 		// Store new session key
 		require(sessionKey != address(0));
 		
-		// Enable operations in swiggs main contract
+/*		// Enable operations in swiggs main contract
 		ISwiggs(SWIGGS_ADDRESS).enableOperations(info.id,
 			info.owner, sessionKey);
-
+*/
 		console.log("enabled");
 		//ownerSessionKey = sessionKey;
 
@@ -100,7 +100,7 @@ abstract contract Restaurant is ERC1155Holder {
 		//require(success, "Could not create a session key");
 
 		// Grant permission to escrow account
-/*		RestaurantEscrow escrow = RestaurantEscrow(info.escrowAddress);
+		RestaurantEscrow escrow = RestaurantEscrow(info.escrowAddress);
 
 		assembly {
 			if iszero(extcodesize(escrow)) {
@@ -108,7 +108,7 @@ abstract contract Restaurant is ERC1155Holder {
 			}
 		}
 
-		escrow.grantPermission();*/
+		escrow.grantPermission();
 	}
 
 	// Stop or halt operations by disabling rewards
@@ -156,7 +156,7 @@ abstract contract Restaurant is ERC1155Holder {
 	}
 
     modifier onlyAdmin {
-        if (msg.sender != owner) revert("Not Admin");
+        if (msg.sender != admin) revert("Not Admin");
         _;
     }
 
@@ -166,7 +166,7 @@ abstract contract Restaurant is ERC1155Holder {
     }
 
     modifier onlyAdminOrOwner {
-        if ((msg.sender != owner) && (msg.sender != info.owner)) revert("Not Admin or Owner");
+        if ((msg.sender != admin) && (msg.sender != info.owner)) revert("Not Admin or Owner");
         _;
     }
 }

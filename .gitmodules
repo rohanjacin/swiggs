@@ -1,0 +1,6 @@
+[submodule "status-web"]
+	path = status-web
+	url = https://github.com/status-im/status-web.git
+[submodule "webauthn-sol"]
+	path = webauthn-sol
+	url = https://github.com/base-org/webauthn-sol.git
